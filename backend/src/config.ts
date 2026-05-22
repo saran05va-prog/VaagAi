@@ -2,22 +2,40 @@ import { config } from 'dotenv'
 
 config()
 
+// Parse Railway REDIS_URL if provided
+const parseRedisUrl = (url: string | undefined) => {
+  if (!url) return { host: '', port: 6379, password: '' }
+  try {
+    const match = url.match(/redis(?:s)?:\/\/(?:([^:]+):([^@]+)@)?([^:]+):(\d+)/)
+    if (match) {
+      return {
+        host: match[3] || '',
+        port: parseInt(match[4] || '6379'),
+        password: match[2] || '',
+      }
+    }
+  } catch {}
+  return { host: '', port: 6379, password: '' }
+}
+
+const redisFromUrl = parseRedisUrl(process.env.REDIS_URL)
+
 export default {
   server: {
-    port: parseInt(process.env.PORT || '3002'),
+    port: parseInt(process.env.PORT || process.env.RAILWAY_SERVICE_PORT || '3002'),
     nodeEnv: process.env.NODE_ENV || 'development',
   },
   database: {
-    url: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/agritech',
+    url: process.env.DATABASE_URL || process.env.POSTGRES_URL || 'postgresql://postgres:postgres@localhost:5432/agritech',
   },
   jwt: {
     secret: process.env.JWT_SECRET || 'default-secret-change-me',
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   },
   redis: {
-    host: process.env.REDIS_HOST || '',
-    port: parseInt(process.env.REDIS_PORT || '6379'),
-    password: process.env.REDIS_PASSWORD || '',
+    host: process.env.REDIS_HOST || redisFromUrl.host || '',
+    port: parseInt(process.env.REDIS_PORT || String(redisFromUrl.port || 6379)),
+    password: process.env.REDIS_PASSWORD || redisFromUrl.password || '',
     db: parseInt(process.env.REDIS_DB || '0'),
   },
   supabase: {
@@ -56,7 +74,6 @@ export default {
     clientId: process.env.GOOGLE_CLIENT_ID || '',
     clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
     redirectUri: process.env.GOOGLE_REDIRECT_URI || `http://localhost:3002/api/auth/google/callback`,
-    // Alternative callback for different frontend ports
     redirectUriAlt: `http://localhost:5174/api/auth/google/callback`,
   },
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5174',
