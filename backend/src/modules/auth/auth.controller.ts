@@ -1,58 +1,16 @@
 import { Router, Response } from 'express'
 import { z } from 'zod'
 import bcrypt from 'bcryptjs'
-import { Resend } from 'resend'
 import prisma from '../../services/database'
 import { authenticate, generateToken, AuthRequest } from './auth.middleware'
+import authService from './auth.service'
 import config from '../../config'
 
 const router = Router()
 
-// Resend email client
-const resend = new Resend(process.env.RESEND_API_KEY || '')
-
-// Generate 6-digit OTP
-function generateOtp(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString()
-}
-
-// Send OTP email
-async function sendOtpEmail(email: string, otp: string): Promise<void> {
-  try {
-    if (process.env.RESEND_API_KEY) {
-      await resend.emails.send({
-        from: 'VaagAi <onboarding@resend.dev>',
-        to: email,
-        subject: 'Verify your VaagAi email',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background: linear-gradient(135deg, #1a4d1a, #2d7a2d); padding: 30px; text-align: center;">
-              <h1 style="color: white; margin: 0;">VaagAi</h1>
-            </div>
-            <div style="padding: 30px; background: #f9f9f9;">
-              <h2 style="color: #333;">Verify your email</h2>
-              <p style="color: #666;">Your verification code is:</p>
-              <div style="font-size: 32px; font-weight: bold; color: #1a4d1a; letter-spacing: 8px; text-align: center; padding: 20px; background: white; border-radius: 8px; margin: 20px 0;">
-                ${otp}
-              </div>
-              <p style="color: #666; font-size: 14px;">This code expires in 10 minutes.</p>
-              <p style="color: #999; font-size: 12px;">If you didn't request this, please ignore this email.</p>
-            </div>
-          </div>
-        `,
-      })
-    } else {
-      console.log(`[DEV] OTP for ${email}: ${otp}`)
-    }
-  } catch (error) {
-    console.error('Failed to send OTP email:', error)
-    console.log(`[DEV] OTP for ${email}: ${otp}`)
-  }
-}
-
 const registerSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(6),
+  password: z.string().min(8),
   firstName: z.string().min(1),
   lastName: z.string().optional(),
   phone: z.string().optional(),
@@ -68,152 +26,28 @@ router.post('/register', async (req, res: Response): Promise<void> => {
   try {
     const data = registerSchema.parse(req.body)
 
-    const existing = await prisma.user.findUnique({ where: { email: data.email } })
-    if (existing) {
-      res.status(400).json({ error: 'Email already registered' })
-      return
-    }
-
-    const passwordHash = await bcrypt.hash(data.password, 12)
-    const otp = generateOtp()
-    const otpExpires = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
-
-    const user = await prisma.user.create({
-      data: {
-        email: data.email,
-        passwordHash,
-        firstName: data.firstName,
-        lastName: data.lastName || null,
-        phone: data.phone || null,
-        isActive: false,
-        otpCode: otp,
-        otpExpiresAt: otpExpires,
-      },
-      select: { id: true, email: true, firstName: true, lastName: true, role: true, createdAt: true },
-    })
-
-    // Send OTP email
-    await sendOtpEmail(data.email, otp)
+    const { user, tokens } = await authService.register(
+      data.email,
+      data.password,
+      data.firstName,
+      data.lastName
+    )
 
     res.status(201).json({
-      message: 'Registration successful. Please verify your email.',
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-      },
+      user,
+      token: tokens.accessToken,
     })
   } catch (error) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ error: error.errors })
       return
     }
+    if (error instanceof Error && error.message === 'User already exists') {
+      res.status(409).json({ error: error.message })
+      return
+    }
     console.error('Register error:', error)
     res.status(500).json({ error: 'Failed to register' })
-  }
-})
-
-// Verify OTP
-router.post('/verify-otp', async (req, res: Response): Promise<void> => {
-  try {
-    const { email, otp } = req.body
-
-    if (!email || !otp) {
-      res.status(400).json({ error: 'Email and OTP are required' })
-      return
-    }
-
-    const user = await prisma.user.findUnique({ where: { email } })
-    if (!user) {
-      res.status(404).json({ error: 'User not found' })
-      return
-    }
-
-    if (user.isActive && user.emailVerified) {
-      res.json({ message: 'Email already verified', user: { id: user.id, email: user.email } })
-      return
-    }
-
-    if (!user.otpCode || user.otpCode !== otp) {
-      res.status(400).json({ error: 'Invalid verification code' })
-      return
-    }
-
-    if (!user.otpExpiresAt || user.otpExpiresAt < new Date()) {
-      res.status(400).json({ error: 'Verification code expired' })
-      return
-    }
-
-    // Activate user
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        isActive: true,
-        emailVerified: true,
-        otpCode: null,
-        otpExpiresAt: null,
-      },
-    })
-
-    const token = generateToken(user.id, user.email)
-
-    res.json({
-      message: 'Email verified successfully',
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-      },
-      token,
-    })
-  } catch (error) {
-    console.error('Verify OTP error:', error)
-    res.status(500).json({ error: 'Failed to verify code' })
-  }
-})
-
-// Resend OTP
-router.post('/resend-otp', async (req, res: Response): Promise<void> => {
-  try {
-    const { email } = req.body
-
-    if (!email) {
-      res.status(400).json({ error: 'Email is required' })
-      return
-    }
-
-    const user = await prisma.user.findUnique({ where: { email } })
-    if (!user) {
-      res.status(404).json({ error: 'User not found' })
-      return
-    }
-
-    if (user.isActive && user.emailVerified) {
-      res.json({ message: 'Email already verified' })
-      return
-    }
-
-    const otp = generateOtp()
-    const otpExpires = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
-
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        otpCode: otp,
-        otpExpiresAt: otpExpires,
-      },
-    })
-
-    await sendOtpEmail(email, otp)
-
-    res.json({ message: 'Verification code sent' })
-  } catch (error) {
-    console.error('Resend OTP error:', error)
-    res.status(500).json({ error: 'Failed to resend code' })
   }
 })
 
@@ -222,44 +56,24 @@ router.post('/login', async (req, res: Response): Promise<void> => {
   try {
     const data = loginSchema.parse(req.body)
 
-    const user = await prisma.user.findUnique({ where: { email: data.email } })
-    if (!user || !user.isActive) {
-      res.status(401).json({ error: 'Invalid credentials' })
-      return
-    }
-
-    const valid = await bcrypt.compare(data.password, user.passwordHash)
-    if (!valid) {
-      res.status(401).json({ error: 'Invalid credentials' })
-      return
-    }
-
-    const token = generateToken(user.id, user.email)
-
-    // Create session
-    await prisma.userSession.create({
-      data: {
-        userId: user.id,
-        token,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        ipAddress: req.ip || undefined,
-        userAgent: req.headers['user-agent'] || undefined,
-      },
-    })
+    const { user, tokens } = await authService.login(
+      data.email,
+      data.password,
+      req.ip || undefined,
+      req.headers['user-agent'] || undefined
+    )
 
     res.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-      },
-      token,
+      user,
+      token: tokens.accessToken,
     })
   } catch (error) {
     if (error instanceof z.ZodError) {
       res.status(400).json({ error: error.errors })
+      return
+    }
+    if (error instanceof Error && error.message === 'Invalid credentials') {
+      res.status(401).json({ error: error.message })
       return
     }
     console.error('Login error:', error)
@@ -270,10 +84,13 @@ router.post('/login', async (req, res: Response): Promise<void> => {
 // Get current user
 router.get('/me', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user!.userId },
-      select: { id: true, email: true, firstName: true, lastName: true, role: true, phone: true, createdAt: true },
-    })
+    const token = req.headers.authorization?.replace('Bearer ', '')
+    if (!token) {
+      res.status(401).json({ error: 'No token provided' })
+      return
+    }
+
+    const user = await authService.getUserFromToken(token)
 
     res.json({ user })
   } catch (error) {
@@ -338,7 +155,7 @@ router.post('/logout', authenticate, async (req: AuthRequest, res: Response): Pr
   try {
     const token = req.headers.authorization?.replace('Bearer ', '')
     if (token) {
-      await prisma.userSession.deleteMany({ where: { token } })
+      await authService.revokeSessionByToken(token)
     }
     res.json({ success: true })
   } catch (error) {
@@ -428,19 +245,19 @@ router.get('/google/callback', async (req, res: Response): Promise<void> => {
     const { code, error: googleError } = req.query
 
     if (googleError) {
-      res.redirect(`${frontendUrl}/signin?error=google_auth_failed`)
+      res.redirect(`${frontendUrl}/login?error=google_auth_failed`)
       return
     }
 
     if (!code || typeof code !== 'string') {
-      res.redirect(`${frontendUrl}/signin?error=no_code`)
+      res.redirect(`${frontendUrl}/login?error=no_code`)
       return
     }
 
     const { clientId, clientSecret, redirectUri } = config.google
 
     if (!clientId || !clientSecret || !redirectUri) {
-      res.redirect(`${frontendUrl}/signin?error=oauth_not_configured`)
+      res.redirect(`${frontendUrl}/login?error=oauth_not_configured`)
       return
     }
 
@@ -461,7 +278,7 @@ router.get('/google/callback', async (req, res: Response): Promise<void> => {
 
     if (!tokenResponse.ok || !tokenData.access_token) {
       console.error('Google token exchange failed:', tokenData)
-      res.redirect(`${frontendUrl}/signin?error=token_exchange_failed`)
+      res.redirect(`${frontendUrl}/login?error=token_exchange_failed`)
       return
     }
 
@@ -474,7 +291,7 @@ router.get('/google/callback', async (req, res: Response): Promise<void> => {
 
     if (!userResponse.ok || !googleUser.email) {
       console.error('Google userinfo failed:', googleUser)
-      res.redirect(`${frontendUrl}/signin?error=user_info_failed`)
+      res.redirect(`${frontendUrl}/login?error=user_info_failed`)
       return
     }
 
@@ -506,7 +323,7 @@ router.get('/google/callback', async (req, res: Response): Promise<void> => {
           },
         })
       } else if (!user.isActive) {
-        res.redirect(`${frontendUrl}/signin?error=account_disabled`)
+        res.redirect(`${frontendUrl}/login?error=account_disabled`)
         return
       }
 
@@ -550,10 +367,10 @@ router.get('/google/callback', async (req, res: Response): Promise<void> => {
       role: authUser.role,
     }))
 
-    res.redirect(`${frontendUrl}/dashboard?token=${token}&user=${userParam}`)
+    res.redirect(`${frontendUrl}/auth/callback?token=${token}&user=${userParam}`)
   } catch (error) {
     console.error('Google OAuth callback error:', error)
-    res.redirect(`${frontendUrl}/signin?error=auth_failed`)
+    res.redirect(`${frontendUrl}/login?error=auth_failed`)
   }
 })
 
