@@ -6,49 +6,43 @@ interface AuthState {
   user: User | null
   token: string | null
   loading: boolean
+  initialized: boolean
   signInWithGoogle: () => Promise<void>
   signInWithEmail: (email: string, password: string) => Promise<void>
   signUpWithEmail: (name: string, email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
-  initialize: () => void
+  initialize: () => Promise<void>
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   token: null,
   loading: true,
+  initialized: false,
 
-  initialize: () => {
+  initialize: async () => {
+    // Prevent re-initialization
+    if (get().initialized) return
+
     // Check for existing token on load
     const storedToken = localStorage.getItem('vaagai_token')
     const storedUserId = localStorage.getItem('vaagai_user_id')
 
     if (storedToken) {
-      // Validate token with backend
-      api.get('/api/auth/me')
-        .then(res => {
-          set({ user: res.data.user, token: storedToken, loading: false })
-        })
-        .catch(() => {
-          localStorage.removeItem('vaagai_token')
-          localStorage.removeItem('vaagai_user_id')
-          set({ user: null, token: null, loading: false })
-        })
-    } else {
-      set({ loading: false })
+      try {
+        // Validate token with backend
+        const response = await api.get('/api/auth/me')
+        const user = response.data.user || response.data
+        set({ user, token: storedToken, loading: false, initialized: true })
+        return
+      } catch (error) {
+        console.warn('Token validation failed, clearing auth:', error)
+        localStorage.removeItem('vaagai_token')
+        localStorage.removeItem('vaagai_user_id')
+      }
     }
 
-    // Listen for messages from OAuth redirect (for Google OAuth)
-    window.addEventListener('message', (event) => {
-      if (event.data?.type === 'GOOGLE_AUTH_SUCCESS') {
-        const { user, token } = event.data
-        localStorage.setItem('vaagai_token', token)
-        localStorage.setItem('vaagai_user_id', user.id)
-        set({ user, token, loading: false })
-      } else if (event.data?.type === 'GOOGLE_AUTH_ERROR') {
-        set({ loading: false })
-      }
-    })
+    set({ user: null, token: null, loading: false, initialized: true })
   },
 
   signInWithGoogle: async () => {

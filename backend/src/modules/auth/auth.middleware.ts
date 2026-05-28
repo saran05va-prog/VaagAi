@@ -19,7 +19,7 @@ export interface AuthRequest extends Request {
 // Validation schemas
 export const registerSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8),
+  password: z.string().min(6),
   firstName: z.string().optional(),
   lastName: z.string().optional(),
 })

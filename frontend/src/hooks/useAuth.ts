@@ -4,7 +4,6 @@ import { useAuthStore } from '../stores/authStore'
 import type { AuthResponse, User } from '../types'
 
 export function useLogin() {
-  const setAuth = useAuthStore((s) => s.setAuth)
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -13,7 +12,8 @@ export function useLogin() {
       return res.data
     },
     onSuccess: (data) => {
-      setAuth(data.user, data.token)
+      localStorage.setItem('vaagai_token', data.token)
+      localStorage.setItem('vaagai_user_id', data.user.id)
       queryClient.invalidateQueries({ queryKey: ['user'] })
     },
   })
@@ -42,7 +42,7 @@ export function useRegister() {
 }
 
 export function useCurrentUser() {
-  const { isAuthenticated } = useAuthStore()
+  const token = useAuthStore((s) => s.token)
 
   return useQuery({
     queryKey: ['user'],
@@ -50,7 +50,7 @@ export function useCurrentUser() {
       const res = await api.get<User>('/api/auth/me')
       return res.data
     },
-    enabled: isAuthenticated,
+    enabled: !!token,
     staleTime: 1000 * 60 * 30,
   })
 }

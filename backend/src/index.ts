@@ -39,10 +39,20 @@ const app = express()
 const httpServer = createServer(app)
 
 // Socket.IO for realtime
+const getProductionOrigins = (): string[] => {
+  const envOrigins = process.env.ALLOWED_ORIGINS?.split(',').filter(Boolean) || []
+  // Fallback production origins if not specified
+  const fallbackOrigins = [
+    'https://vaagaiai.netlify.app',
+    'https://smartfarmai-production.up.railway.app',
+  ]
+  return envOrigins.length > 0 ? envOrigins : fallbackOrigins
+}
+
 export const io = new Server(httpServer, {
   cors: {
     origin: config.server.nodeEnv === 'production'
-      ? process.env.ALLOWED_ORIGINS?.split(',') || '*'
+      ? getProductionOrigins()
       : '*',
     methods: ['GET', 'POST'],
     credentials: true,
@@ -57,7 +67,7 @@ app.use(helmet({
 app.use(compression())
 app.use(cors({
   origin: config.server.nodeEnv === 'production'
-    ? process.env.ALLOWED_ORIGINS?.split(',') || false
+    ? getProductionOrigins()
     : true,
   credentials: true,
 }))

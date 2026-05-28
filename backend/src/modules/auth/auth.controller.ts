@@ -10,7 +10,7 @@ const router = Router()
 
 const registerSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8),
+  password: z.string().min(6),
   firstName: z.string().min(1),
   lastName: z.string().optional(),
   phone: z.string().optional(),
