@@ -1,15 +1,17 @@
 /**
- * /login — Supabase password sign-in.
+ * /signup — Supabase password sign-up with email verification.
  *
- * On success, the Supabase session is set automatically (onAuthStateChange
- * fires); useAuth() picks it up; we navigate to ?next= or /farm.
+ * After signUp, Supabase sends a confirmation email. The user is NOT
+ * signed in yet (per Supabase Auth behaviour with "Confirm email" on).
+ * We redirect to /verify-email so they can resend if it didn't arrive.
  *
- * On "Email not confirmed" we redirect to /verify-email so the user can
- * resend the confirmation link.
+ * Note: we deliberately don't ask for a display name here. First/last
+ * name is collected later in the onboarding/profile flow (Phase 1.5b
+ * will wire that to a Supabase `profiles` table).
  */
 
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Loader2, Sprout } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -17,39 +19,44 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/hooks/useAuth'
 
-export default function Login() {
+export default function Signup() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const next = searchParams.get('next') || '/farm'
-  const { session, loading: authLoading, signInWithPassword } = useAuth()
+  const { session, loading: authLoading, signUpWithPassword } = useAuth()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     if (!authLoading && session) {
-      navigate(next, { replace: true })
+      navigate('/farm', { replace: true })
     }
-  }, [authLoading, session, navigate, next])
+  }, [authLoading, session, navigate])
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
+    if (password.length < 8) {
+      toast.error('Password must be at least 8 characters.')
+      return
+    }
+    if (password !== confirm) {
+      toast.error('Passwords do not match.')
+      return
+    }
     setSubmitting(true)
     try {
-      await signInWithPassword(email.trim(), password)
-      toast.success('Welcome back.')
-      navigate(next, { replace: true })
+      await signUpWithPassword(email.trim(), password)
+      toast.success('Check your email.', {
+        description: 'We sent you a confirmation link to verify your account.',
+      })
+      navigate('/verify-email', {
+        replace: true,
+        state: { email: email.trim() },
+      })
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Sign-in failed.'
-      if (/email not confirmed/i.test(message)) {
-        toast.message('Please verify your email first.', {
-          description: 'We sent you a confirmation link — check your inbox.',
-        })
-        navigate('/verify-email', { replace: true })
-      } else {
-        toast.error(message)
-      }
+      const message = err instanceof Error ? err.message : 'Sign-up failed.'
+      toast.error(message)
     } finally {
       setSubmitting(false)
     }
@@ -80,10 +87,10 @@ export default function Login() {
           className="text-2xl font-bold mb-1"
           style={{ fontFamily: 'Sora, sans-serif', color: 'var(--color-text)' }}
         >
-          Sign in
+          Create your account
         </h1>
         <p className="text-sm mb-6" style={{ color: 'var(--color-text-muted)' }}>
-          Welcome back. Sign in to your farm dashboard.
+          Start getting AI-powered crop, weather, and market guidance.
         </p>
 
         <form onSubmit={onSubmit} className="space-y-4">
@@ -102,24 +109,32 @@ export default function Login() {
           </div>
 
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
-              <Link
-                to="/forgot-password"
-                className="text-xs underline-offset-2 hover:underline"
-                style={{ color: 'var(--color-primary)' }}
-              >
-                Forgot?
-              </Link>
-            </div>
+            <Label htmlFor="password">Password</Label>
             <Input
               id="password"
               type="password"
-              autoComplete="current-password"
+              autoComplete="new-password"
               required
               minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              disabled={submitting}
+            />
+            <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+              At least 8 characters.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="confirm">Confirm password</Label>
+            <Input
+              id="confirm"
+              type="password"
+              autoComplete="new-password"
+              required
+              minLength={8}
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
               disabled={submitting}
             />
           </div>
@@ -130,7 +145,7 @@ export default function Login() {
             className="w-full h-11 text-sm font-semibold"
             style={{ background: 'var(--color-primary)', color: 'white' }}
           >
-            {submitting ? <Loader2 className="animate-spin" size={16} /> : 'Sign in'}
+            {submitting ? <Loader2 className="animate-spin" size={16} /> : 'Create account'}
           </Button>
         </form>
 
@@ -138,13 +153,13 @@ export default function Login() {
           className="mt-6 text-center text-sm"
           style={{ color: 'var(--color-text-muted)' }}
         >
-          New here?{' '}
+          Already have an account?{' '}
           <Link
-            to="/signup"
+            to="/login"
             className="font-semibold underline-offset-2 hover:underline"
             style={{ color: 'var(--color-primary)' }}
           >
-            Create an account
+            Sign in
           </Link>
         </p>
       </div>

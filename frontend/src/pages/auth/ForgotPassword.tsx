@@ -1,15 +1,15 @@
 /**
- * /login — Supabase password sign-in.
+ * /forgot-password — request a password-reset email.
  *
- * On success, the Supabase session is set automatically (onAuthStateChange
- * fires); useAuth() picks it up; we navigate to ?next= or /farm.
+ * Supabase sends the email; the link points at /reset-password with a
+ * token in the URL hash, which detectSessionInUrl will pick up.
  *
- * On "Email not confirmed" we redirect to /verify-email so the user can
- * resend the confirmation link.
+ * Always show the same confirmation regardless of whether the email
+ * exists, to prevent account enumeration.
  */
 
-import { useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { Loader2, Sprout } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -17,42 +17,25 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/hooks/useAuth'
 
-export default function Login() {
-  const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const next = searchParams.get('next') || '/farm'
-  const { session, loading: authLoading, signInWithPassword } = useAuth()
-
+export default function ForgotPassword() {
+  const { resetPasswordForEmail } = useAuth()
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
-
-  useEffect(() => {
-    if (!authLoading && session) {
-      navigate(next, { replace: true })
-    }
-  }, [authLoading, session, navigate, next])
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     setSubmitting(true)
     try {
-      await signInWithPassword(email.trim(), password)
-      toast.success('Welcome back.')
-      navigate(next, { replace: true })
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Sign-in failed.'
-      if (/email not confirmed/i.test(message)) {
-        toast.message('Please verify your email first.', {
-          description: 'We sent you a confirmation link — check your inbox.',
-        })
-        navigate('/verify-email', { replace: true })
-      } else {
-        toast.error(message)
-      }
+      await resetPasswordForEmail(email.trim())
+    } catch {
+      // Swallow — we don't want to leak whether the email exists.
     } finally {
       setSubmitting(false)
     }
+    toast.success('If an account exists for that email, a reset link is on its way.', {
+      description: 'Check your inbox (and spam folder).',
+    })
+    setEmail('')
   }
 
   return (
@@ -80,10 +63,10 @@ export default function Login() {
           className="text-2xl font-bold mb-1"
           style={{ fontFamily: 'Sora, sans-serif', color: 'var(--color-text)' }}
         >
-          Sign in
+          Reset your password
         </h1>
         <p className="text-sm mb-6" style={{ color: 'var(--color-text-muted)' }}>
-          Welcome back. Sign in to your farm dashboard.
+          Enter your email and we'll send you a reset link.
         </p>
 
         <form onSubmit={onSubmit} className="space-y-4">
@@ -101,36 +84,13 @@ export default function Login() {
             />
           </div>
 
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
-              <Link
-                to="/forgot-password"
-                className="text-xs underline-offset-2 hover:underline"
-                style={{ color: 'var(--color-primary)' }}
-              >
-                Forgot?
-              </Link>
-            </div>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              minLength={8}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={submitting}
-            />
-          </div>
-
           <Button
             type="submit"
             disabled={submitting}
             className="w-full h-11 text-sm font-semibold"
             style={{ background: 'var(--color-primary)', color: 'white' }}
           >
-            {submitting ? <Loader2 className="animate-spin" size={16} /> : 'Sign in'}
+            {submitting ? <Loader2 className="animate-spin" size={16} /> : 'Send reset link'}
           </Button>
         </form>
 
@@ -138,13 +98,13 @@ export default function Login() {
           className="mt-6 text-center text-sm"
           style={{ color: 'var(--color-text-muted)' }}
         >
-          New here?{' '}
+          Remembered it?{' '}
           <Link
-            to="/signup"
+            to="/login"
             className="font-semibold underline-offset-2 hover:underline"
             style={{ color: 'var(--color-primary)' }}
           >
-            Create an account
+            Back to sign in
           </Link>
         </p>
       </div>
