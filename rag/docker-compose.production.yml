@@ -1,0 +1,66 @@
+# Production Docker Compose
+# Combined RAG service with Chroma
+version: '3.8'
+
+services:
+  # RAG Service
+  rag:
+    build:
+      context: ..
+      dockerfile: rag/Dockerfile
+    container_name: vaagai-rag
+    ports:
+      - "8001:8001"
+    environment:
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-all-MiniLM-L6-v2}
+      - LLM_MODEL=${LLM_MODEL:-llama-3-70b-versatile}
+      - CHROMA_PERSIST_DIRECTORY=/app/data/chroma_db
+      - DOCUMENTS_DIRECTORY=/app/data/documents
+      - CHUNK_SIZE=${CHUNK_SIZE:-500}
+      - CHUNK_OVERLAP=${CHUNK_OVERLAP:-50}
+      - TOP_K=${TOP_K:-5}
+    volumes:
+      - rag_data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Express Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: vaagai-backend
+    ports:
+      - "3002:3002"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RAG_SERVICE_URL=http://rag:8001
+      - GROQ_API_KEY=${GROQ_API_KEY}
+    depends_on:
+      - redis
+      - rag
+    restart: unless-stopped
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: vaagai-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  rag_data:
+    driver: local
+  redis_data:
+    driver: local

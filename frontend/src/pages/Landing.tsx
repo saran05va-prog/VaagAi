@@ -1,442 +1,1070 @@
-import { useState } from "react"
-import { Link } from "react-router-dom"
-import * as Dialog from "@radix-ui/react-dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
+import { useAuthModal } from '../contexts/AuthModalContext'
+import { motion, AnimatePresence, useInView } from 'framer-motion'
 import {
-  Sprout,
-  CloudSun,
-  LineChart,
-  Settings,
-  Users,
-  Shield,
-  ChevronRight,
-  TrendingUp,
-  Droplets,
-  Sun,
-  X,
-  Loader2,
-  Mail,
-  Lock,
-} from "lucide-react"
+  Sprout, ChevronRight, Sparkles, Shield, TrendingUp, Droplets, CloudSun, BarChart3, Leaf,
+  X, Menu, Check, Star, ChevronDown, ArrowUp, Heart, Bookmark, Edit2, Plus, Trash2, Play,
+  ArrowRight, Moon, Sun, Quote, MessageCircle, Code2, Share2, Video, Zap, Clock, Users,
+  Globe, Bot, BarChart4
+} from 'lucide-react'
+import HeroFarmBackground from '../components/HeroFarmBackground'
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002"
-
-const features = [
-  {
-    icon: Sprout,
-    title: "Smart Crop Planning",
-    description: "AI-powered crop recommendations based on soil analysis, weather patterns, and market trends.",
-  },
-  {
-    icon: CloudSun,
-    title: "Weather Integration",
-    description: "Real-time weather forecasts and alerts to protect your crops and optimize operations.",
-  },
-  {
-    icon: LineChart,
-    title: "Market Intelligence",
-    description: "Live market prices and trends to help you make informed selling decisions.",
-  },
-  {
-    icon: Settings,
-    title: "Irrigation Automation",
-    description: "Smart irrigation systems that optimize water usage based on soil moisture and weather.",
-  },
-  {
-    icon: Users,
-    title: "Farm Management",
-    description: "Complete farm management with task tracking, team collaboration, and record keeping.",
-  },
-  {
-    icon: Shield,
-    title: "AI Insights",
-    description: "Advanced AI analytics providing actionable insights to improve yield and reduce costs.",
-  },
+const navLinks = [
+  { id: 'features', label: 'Features' },
+  { id: 'how-it-works', label: 'How It Works' },
+  { id: 'testimonials', label: 'Testimonials' },
+  { id: 'pricing', label: 'Pricing' },
+  { id: 'faq', label: 'FAQ' },
 ]
 
-const stats = [
-  { value: "40%", label: "Yield Increase", icon: TrendingUp },
-  { value: "30%", label: "Water Savings", icon: Droplets },
-  { value: "50%", label: "Time Reduction", icon: Sun },
-  { value: "24/7", label: "AI Support", icon: Sprout },
+const features = [
+  { icon: Bot, title: 'AI Crop Advisor', description: 'Personalized planting, irrigation, and harvest recommendations powered by machine learning models trained on millions of farm data points.', color: '#2d7a2d', bg: '#d6f0d6' },
+  { icon: Globe, title: 'Weather Intelligence', description: 'Hyperlocal 7-day forecasts, frost alerts, and rainfall predictions to protect your crops before conditions change.', color: '#2563eb', bg: '#dbeafe' },
+  { icon: BarChart4, title: 'Market Analytics', description: 'Real-time commodity prices, demand forecasting, and sell-time optimization to maximize your profit per harvest.', color: '#d97706', bg: '#fef3c7' },
+  { icon: Droplets, title: 'Irrigation AI', description: 'Smart watering schedules that adapt to soil moisture, crop stage, and weather — cutting water usage by up to 35%.', color: '#0891b2', bg: '#cffafe' },
+  { icon: Shield, title: 'Disease Detection', description: 'AI vision that spots diseases, pests, and nutrient deficiencies from photos — before they spread across your farm.', color: '#7c3aed', bg: '#ede9fe' },
+  { icon: TrendingUp, title: 'Yield Forecasting', description: 'Predict your harvest yield with 94% accuracy using satellite imagery, soil data, and growth-stage modeling.', color: '#2d7a4d', bg: '#d6f0d6' },
 ]
 
 const steps = [
-  {
-    number: "01",
-    title: "Create Your Farm",
-    description: "Sign up and add your farm details including location, size, and crop types.",
-  },
-  {
-    number: "02",
-    title: "Connect Sensors",
-    description: "Integrate soil sensors, weather stations, and other IoT devices for real-time data.",
-  },
-  {
-    number: "03",
-    title: "Get AI Recommendations",
-    description: "Receive personalized insights for planting, irrigation, harvesting, and more.",
-  },
-  {
-    number: "04",
-    title: "Optimize Operations",
-    description: "Implement recommendations and track performance with detailed analytics.",
-  },
+  { number: '01', icon: Leaf, title: 'Connect Your Farm', description: 'Add your farm location, soil type, and crops. Takes 2 minutes.' },
+  { number: '02', icon: Zap, title: 'Get AI Recommendations', description: 'Receive tailored daily advice on irrigation, fertilizing, pest control, and harvest timing.' },
+  { number: '03', icon: BarChart4, title: 'Track & Optimize', description: 'Monitor growth, compare seasons, and make data-driven decisions that boost yield.' },
 ]
 
-export default function Landing() {
-  const [loginOpen, setLoginOpen] = useState(false)
-  const [loginEmail, setLoginEmail] = useState("")
-  const [loginPassword, setLoginPassword] = useState("")
-  const [loginError, setLoginError] = useState("")
-  const [loginLoading, setLoginLoading] = useState(false)
+const demoItems = [
+  { id: 1, title: 'Rice Field - Plot A', status: 'Growing', stage: 'Vegetative', health: 92 },
+  { id: 2, title: 'Wheat Field - Plot B', status: 'Ready', stage: 'Harvest', health: 88 },
+  { id: 3, title: 'Tomato Greenhouse', status: 'Growing', stage: 'Flowering', health: 95 },
+  { id: 4, title: 'Corn Field - Plot C', status: 'Planned', stage: 'Preparation', health: 0 },
+]
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoginError("")
-    setLoginLoading(true)
+const testimonials = [
+  { name: 'Rajesh Kumar', role: 'Rice Farmer', company: 'Green Fields Co.', avatar: 'RK', rating: 5, text: 'VaagAi transformed my farm. Yield increased by 40% in the first season. The AI insights are incredibly accurate.' },
+  { name: 'Priya Sharma', role: 'Vegetable Grower', company: 'Fresh Harvest Farms', avatar: 'PS', rating: 5, text: 'The irrigation automation alone saved us 30% on water bills. The pest detection feature caught an outbreak early.' },
+  { name: 'Amit Patel', role: 'Farm Manager', company: 'AgroTech Solutions', avatar: 'AP', rating: 5, text: 'Managing multiple farms has never been easier. The dashboard gives me a complete overview of all operations.' },
+  { name: 'Sunita Verma', role: 'Organic Farmer', company: 'Nature\'s Bounty', avatar: 'SV', rating: 4, text: 'The market insights helped me time my sales perfectly. I got 20% better prices compared to last year.' },
+]
 
-    try {
-      const response = await fetch(`${API_URL}/api/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+const pricingPlans = [
+  { name: 'Starter', price: 'Free', period: 'forever', description: 'Perfect for small farms getting started with AI.', features: ['1 farm profile', 'Basic crop recommendations', '3-day weather forecast', 'Community support'], cta: 'Get Started', popular: false },
+  { name: 'Pro', price: '\u20b9399', period: '/month', description: 'For serious farmers who want full control and insights.', features: ['Up to 5 farms', 'Advanced AI recommendations', '15-day weather forecast', 'Market price alerts', 'Disease detection (50 scans/mo)', 'Email support'], cta: 'Start Free Trial', popular: true },
+  { name: 'Enterprise', price: '\u20b9599', period: '/month', description: 'For large operations and farming cooperatives.', features: ['Unlimited farms', 'API access & integrations', '30-day weather forecast', 'Satellite imagery analysis', 'Unlimited disease scans', 'Dedicated account manager', 'Priority support'], cta: 'Contact Sales', popular: false },
+]
+
+const faqs = [
+  { q: 'What is VaagAi and how does it work?', a: 'VaagAi is an AI-powered agricultural platform that provides smart crop recommendations, weather forecasts, market insights, and pest management tools. It analyzes your farm data to deliver personalized advice.' },
+  { q: 'Is VaagAi suitable for small farms?', a: 'Absolutely! VaagAi is designed for farms of all sizes. Our Free plan is perfect for small farms, and you can upgrade as your operation grows.' },
+  { q: 'How accurate are the AI predictions?', a: 'Our AI models achieve over 90% accuracy in crop recommendations and pest detection. We continuously improve our models with new data.' },
+  { q: 'Do I need internet connectivity?', a: 'An internet connection is required for real-time features. However, you can download reports and insights for offline viewing.' },
+  { q: 'What kind of support do you offer?', a: 'Free users get community support. Pro users get email support, and Enterprise customers get priority support with a dedicated account manager.' },
+  { q: 'Can I cancel my subscription anytime?', a: 'Yes, you can cancel anytime. There are no long-term contracts. Your data remains accessible even after cancellation.' },
+  { q: 'Is my farm data secure?', a: 'We take security seriously. All data is encrypted in transit and at rest. We never share your data with third parties without your consent.' },
+  { q: 'How do I get started?', a: 'Simply create a free account, set up your farm profile, and start exploring AI-powered recommendations tailored to your farm.' },
+]
+
+function SectionLabel({ children, icon }: { children: React.ReactNode; icon?: any }) {
+  const Icon = icon || Sparkles
+  return (
+    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-6" style={{ background: 'var(--color-primary-light)', color: 'var(--color-primary-dark)' }}>
+      <Icon size={14} /> {children}
+    </div>
+  )
+}
+
+function SectionTitle({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return <h2 className={`text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-[1.08] ${className}`} style={{ fontFamily: 'Geist, Sora, sans-serif' }}>{children}</h2>
+}
+
+function SectionDesc({ children }: { children: React.ReactNode }) {
+  return <p className="mt-4 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>{children}</p>
+}
+
+function StarRating({ rating }: { rating: number }) {
+  return (
+    <div className="flex gap-0.5 justify-center">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <Star key={i} size={14} fill={i < rating ? '#eab308' : 'none'} color={i < rating ? '#eab308' : 'var(--color-border)'} />
+      ))}
+    </div>
+  )
+}
+
+function AnimatedCounter({ target, suffix = '' }: { target: number; suffix?: string }) {
+  const [count, setCount] = useState(0)
+  const ref = useRef(null)
+  const isInView = useInView(ref, { once: true })
+
+  useEffect(() => {
+    if (!isInView) return
+    let start = 0
+    const duration = 1500
+    const step = Math.ceil(target / (duration / 16))
+    const timer = setInterval(() => {
+      start += step
+      if (start >= target) { clearInterval(timer); setCount(target) }
+      else setCount(start)
+    }, 16)
+    return () => clearInterval(timer)
+  }, [isInView, target])
+
+  return <span ref={ref}>{count.toLocaleString()}{suffix}</span>
+}
+
+function GuardButton({ onClick, children, className = '' }: { onClick: () => void; children: React.ReactNode; className?: string }) {
+  return (
+    <button onClick={onClick} className={className}>{children}</button>
+  )
+}
+
+// ---- NavBar ----
+function NavBar() {
+  const [scrolled, setScrolled] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [activeSection, setActiveSection] = useState('')
+  const navigate = useNavigate()
+  const { isAuthenticated, isGuest, logout } = useAuth()
+
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 20)
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) setActiveSection(entry.target.id)
+        })
+      },
+      { rootMargin: '-40% 0px -55% 0px' }
+    )
+    document.querySelectorAll('section[id]').forEach((el) => observer.observe(el))
+    return () => observer.disconnect()
+  }, [])
+
+  const scrollTo = (id: string) => {
+    setMobileOpen(false)
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  useEffect(() => {
+    if (mobileOpen) document.body.style.overflow = 'hidden'
+    else document.body.style.overflow = ''
+    return () => { document.body.style.overflow = '' }
+  }, [mobileOpen])
+
+  return (
+    <header
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500`}
+      style={{
+        background: scrolled ? 'rgba(255,255,255,0.8)' : 'transparent',
+        backdropFilter: scrolled ? 'blur(16px)' : 'none',
+        borderBottom: scrolled ? '1px solid var(--color-border)' : '1px solid transparent',
+      }}
+    >
+      <nav className="max-w-7xl mx-auto px-4 sm:px-6 flex h-16 items-center justify-between">
+        <button onClick={() => navigate('/')} className="flex items-center gap-2 shrink-0">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--color-primary)' }}>
+            <Sprout size={20} color="white" />
+          </div>
+          <span className="text-lg font-bold" style={{ fontFamily: 'Geist, Sora, sans-serif', color: scrolled ? 'var(--color-text)' : 'white' }}>
+            Vaag<span style={{ color: scrolled ? 'var(--color-primary)' : '#4ade80' }}>Ai</span>
+          </span>
+        </button>
+
+        <div className="hidden md:flex items-center gap-1">
+          {navLinks.map((link) => (
+            <button
+              key={link.id}
+              onClick={() => scrollTo(link.id)}
+              className="min-h-[44px] px-3 text-sm font-medium rounded-xl transition-all duration-200"
+              style={{
+                color: activeSection === link.id ? 'var(--color-primary)' : scrolled ? 'var(--color-text-secondary)' : 'rgba(255,255,255,0.85)',
+                background: activeSection === link.id ? 'var(--color-primary-light)' : 'transparent',
+              }}
+            >
+              {link.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="hidden md:flex items-center gap-3">
+          {isGuest ? (
+            <button onClick={() => navigate('/signup')} className="min-h-[44px] px-5 text-sm font-semibold rounded-xl" style={{ background: 'white', color: 'var(--color-primary)', border: '1px solid var(--color-border)' }}>
+              Sign Up Free
+            </button>
+          ) : isAuthenticated ? (
+            <button onClick={logout} className="min-h-[44px] px-4 text-sm font-medium rounded-xl" style={{ color: scrolled ? 'var(--color-text-secondary)' : 'rgba(255,255,255,0.8)' }}>
+              Log out
+            </button>
+          ) : (
+            <>
+              <button onClick={() => navigate('/login')} className="min-h-[44px] px-4 text-sm font-medium rounded-xl transition-colors" style={{ color: scrolled ? 'var(--color-text-secondary)' : 'rgba(255,255,255,0.85)' }}>
+                Log in
+              </button>
+              <button onClick={() => navigate('/signup')} className="min-h-[44px] px-5 text-sm font-semibold rounded-xl gap-1.5 inline-flex items-center" style={{ background: scrolled ? 'var(--color-primary)' : 'rgba(255,255,255,0.15)', color: 'white', boxShadow: scrolled ? 'var(--shadow-primary)' : 'none', border: scrolled ? 'none' : '1px solid rgba(255,255,255,0.2)' }}>
+                Get Started <ChevronRight size={15} />
+              </button>
+            </>
+          )}
+        </div>
+
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="md:hidden min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl transition-colors"
+          style={{ color: scrolled ? 'var(--color-text-secondary)' : 'white' }}
+          aria-label="Open menu"
+        >
+          <Menu size={22} />
+        </button>
+      </nav>
+
+      <AnimatePresence>
+        {mobileOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-40" style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}
+              onClick={() => setMobileOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, x: '100%' }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              className="fixed top-0 right-0 bottom-0 z-50 w-[280px] max-w-[85vw] flex flex-col"
+              style={{ background: 'var(--color-surface)', borderLeft: '1px solid var(--color-border)' }}
+            >
+              <div className="flex items-center justify-between px-4 h-16 shrink-0" style={{ borderBottom: '1px solid var(--color-border)' }}>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--color-primary)' }}>
+                    <Sprout size={18} color="white" />
+                  </div>
+                  <span className="font-bold" style={{ fontFamily: 'Geist, Sora, sans-serif' }}>VaagAi</span>
+                </div>
+                <button onClick={() => setMobileOpen(false)} className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg" style={{ color: 'var(--color-text-secondary)' }} aria-label="Close menu">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+                {navLinks.map((link) => (
+                  <button key={link.id} onClick={() => scrollTo(link.id)}
+                    className="w-full text-left min-h-[44px] px-3 rounded-xl text-sm font-medium transition-colors flex items-center"
+                    style={{
+                      color: activeSection === link.id ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                      background: activeSection === link.id ? 'var(--color-primary-light)' : 'transparent',
+                    }}
+                  >
+                    {link.label}
+                  </button>
+                ))}
+              </div>
+              <div className="px-3 py-4 shrink-0 space-y-2" style={{ borderTop: '1px solid var(--color-border)' }}>
+                {isGuest ? (
+                  <button onClick={() => navigate('/signup')} className="w-full min-h-[44px] rounded-xl text-sm font-semibold" style={{ background: 'var(--color-primary)', color: 'white' }}>
+                    Sign Up Free
+                  </button>
+                ) : isAuthenticated ? (
+                  <button onClick={logout} className="w-full min-h-[44px] rounded-xl text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>
+                    Log out
+                  </button>
+                ) : (
+                  <>
+                    <button onClick={() => navigate('/login')} className="w-full min-h-[44px] rounded-xl text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>
+                      Log in
+                    </button>
+                    <button onClick={() => navigate('/signup')} className="w-full min-h-[44px] rounded-xl text-sm font-semibold inline-flex items-center justify-center gap-1.5" style={{ background: 'var(--color-primary)', color: 'white' }}>
+                      Get Started <ChevronRight size={16} />
+                    </button>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </header>
+  )
+}
+
+// ---- Hero ----
+function HeroSection() {
+  const navigate = useNavigate()
+  const { enterGuestMode } = useAuth()
+  const [charCount, setCharCount] = useState(0)
+  const fullText = 'The Future of Farming is Intelligent'
+  const [typingComplete, setTypingComplete] = useState(false)
+  const [liveMetrics, setLiveMetrics] = useState({ yield: 0, water: 0, health: 0 })
+
+  useEffect(() => {
+    let i = 0
+    const interval = setInterval(() => {
+      setCharCount(i + 1)
+      i++
+      if (i >= fullText.length) {
+        clearInterval(interval)
+        setTypingComplete(true)
+      }
+    }, 40)
+    return () => clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
+    const target = { yield: 40, water: -30, health: 92 }
+    const duration = 1500
+    const startTime = Date.now()
+    const timer = setInterval(() => {
+      const elapsed = Date.now() - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      setLiveMetrics({
+        yield: Math.round(target.yield * progress),
+        water: Math.round(target.water * progress),
+        health: Math.round(16 + target.health * progress * 0.009),
       })
+      if (progress >= 1) clearInterval(timer)
+    }, 30)
+    return () => clearInterval(timer)
+  }, [])
 
-      const data = await response.json()
+  const handleWatchDemo = () => {
+    enterGuestMode()
+    navigate('/farm')
+  }
 
-      if (!response.ok) {
-        throw new Error(data.error || "Login failed")
-      }
+  return (
+    <section className="relative min-h-screen flex items-center overflow-hidden pt-16">
+      <HeroFarmBackground />
+      <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-black/30 to-transparent z-[1]" />
+      <div className="relative z-10 w-full">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-20 md:py-32">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+            <div className="max-w-xl">
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium mb-6" style={{ background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(12px)', color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.12)' }}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#4ade80' }} />
+                  The Future of Farming is Here
+                </div>
+              </motion.div>
+              <motion.h1
+                className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[0.98]"
+                style={{ fontFamily: 'Geist, Sora, sans-serif', color: 'white', textShadow: '0 2px 20px rgba(0,0,0,0.3)' }}
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+              >
+                {charCount <= 25 ? (
+                  <>
+                    {fullText.slice(0, charCount)}
+                    {!typingComplete && <span className="animate-pulse" style={{ color: '#4ade80' }}>|</span>}
+                  </>
+                ) : (
+                  <>
+                    The Future of Farming is{' '}
+                    <span style={{ color: '#4ade80' }}>Intelligent</span>
+                    {!typingComplete && <span className="animate-pulse" style={{ color: '#4ade80' }}>|</span>}
+                  </>
+                )}
+              </motion.h1>
+              <motion.p
+                className="mt-5 text-base sm:text-lg leading-relaxed max-w-lg"
+                style={{ color: 'rgba(255,255,255,0.75)' }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+              >
+                Every decision — from sowing to harvest — powered by AI, weather intelligence, satellite imagery, and predictive analytics.
+              </motion.p>
+              <motion.div
+                className="mt-8 flex flex-col sm:flex-row gap-3"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+              >
+                <button onClick={() => navigate('/signup')} className="min-h-[48px] px-6 text-base font-semibold rounded-2xl gap-2 inline-flex items-center justify-center" style={{ background: '#2d7a2d', color: 'white', boxShadow: '0 4px 20px rgba(45,122,45,0.4)' }}>
+                  Start Free <ChevronRight size={18} />
+                </button>
+                <button onClick={handleWatchDemo} className="min-h-[48px] px-6 text-base font-medium rounded-2xl gap-2 inline-flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', backdropFilter: 'blur(12px)' }}>
+                  <Play size={18} /> Watch Demo
+                </button>
+              </motion.div>
+            </div>
 
-      localStorage.setItem("vaagai_token", data.token)
-      if (data.user?.id) {
-        localStorage.setItem("vaagai_user_id", data.user.id)
-      }
-      localStorage.setItem("user", JSON.stringify(data.user))
-      window.location.href = "/farm"
-    } catch (err) {
-      setLoginError(err instanceof Error ? err.message : "Login failed")
-    } finally {
-      setLoginLoading(false)
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.4 }}
+              className="hidden lg:block"
+            >
+              <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.12)' }}>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="w-2 h-2 rounded-full" style={{ background: '#4ade80' }} />
+                  <span className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.85)' }}>Farm Overview — Live</span>
+                  <span className="ml-auto flex items-center gap-1 text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#4ade80' }} />
+                    AI Monitoring
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  {[TrendingUp, Droplets, Leaf].map((Icon, i) => {
+                    const colors = ['#4ade80', '#60a5fa', '#4ade80']
+                    const labels = ['Yield', 'Water Usage', 'Crop Health']
+                    const values = [liveMetrics.yield, liveMetrics.water, liveMetrics.health]
+                    const units = ['%', '%', '%']
+                    return (
+                      <div key={i} className="rounded-xl p-3 text-center" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                        <div className="w-7 h-7 rounded-lg flex items-center justify-center mx-auto mb-1.5" style={{ background: i === 1 ? 'rgba(96,165,250,0.15)' : 'rgba(74,222,128,0.15)' }}>
+                          <Icon size={14} color={colors[i]} />
+                        </div>
+                        <div className="text-lg font-extrabold" style={{ color: values[i] < 0 ? '#60a5fa' : 'rgba(255,255,255,0.95)' }}>
+                          {values[i] > 0 ? '+' : ''}{values[i]}{units[i]}
+                        </div>
+                        <div className="text-[10px] font-medium mt-0.5" style={{ color: 'rgba(255,255,255,0.5)' }}>{labels[i]}</div>
+                      </div>
+                    )
+                  })}
+                </div>
+                <div className="text-[11px] text-center" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                  AI-powered insights for your farm · Updated in real-time
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ---- Trusted By / Logo Carousel ----
+const logos = ['AgroTech', 'GreenFarm', 'HarvestInc', 'FarmTech', 'BioGrow', 'EcoFarm', 'SmartAgri', 'PureHarvest']
+
+function TrustedBySection() {
+  return (
+    <section className="py-12 md:py-16" style={{ background: 'var(--color-surface)' }}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <p className="text-center text-sm font-medium mb-8" style={{ color: 'var(--color-text-muted)' }}>
+          Trusted by <strong style={{ color: 'var(--color-text)' }}><AnimatedCounter target={10000} />+</strong> farmers worldwide
+        </p>
+        <div className="relative overflow-hidden">
+          <motion.div
+            className="flex gap-16 items-center"
+            animate={{ x: ['0%', '-50%'] }}
+            transition={{ duration: 30, repeat: Infinity, ease: 'linear' }}
+          >
+            {[...logos, ...logos].map((name, i) => (
+              <div key={i} className="flex-shrink-0 text-base font-bold tracking-wider transition-all duration-300 grayscale hover:grayscale-0" style={{ color: 'var(--color-text-muted)', opacity: 0.4 }}>
+                {name}
+              </div>
+            ))}
+          </motion.div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ---- Stats Bar ----
+function StatsBar() {
+  const ref = useRef(null)
+  const isInView = useInView(ref, { once: true, margin: '-80px' })
+
+  const stats = [
+    { icon: Users, value: 10000, label: 'Farmers', suffix: '+' },
+    { icon: Leaf, value: 250000, label: 'Acres Managed', suffix: '+' },
+    { icon: TrendingUp, value: 40, label: 'Avg. Yield Increase', suffix: '%' },
+    { icon: Clock, value: 98, label: 'Uptime', suffix: '%' },
+  ]
+
+  return (
+    <section className="py-12 md:py-16" style={{ background: 'var(--color-surface-2)' }}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6" ref={ref}>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
+          {stats.map((s, i) => (
+            <motion.div
+              key={s.label}
+              className="text-center"
+              initial={{ opacity: 0, y: 20 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.5, delay: i * 0.1 }}
+            >
+              <div className="text-3xl md:text-4xl font-extrabold mb-1" style={{ fontFamily: 'Geist, Sora, sans-serif', color: 'var(--color-primary)' }}>
+                {isInView ? <AnimatedCounter target={s.value} suffix={s.label === 'Uptime' ? '%' : ''} /> : '0'}
+                {s.label !== 'Uptime' && <span>{s.label === 'Avg. Yield Increase' ? '%' : '+'}</span>}
+              </div>
+              <div className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>{s.label}</div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ---- Features ----
+function FeatureCard({ icon: Icon, title, description, index, color, bg }: { icon: any; title: string; description: string; index: number; color: string; bg: string }) {
+  const ref = useRef(null)
+  const isInView = useInView(ref, { once: true, margin: '-50px' })
+
+  return (
+    <motion.div
+      ref={ref}
+      className="group relative rounded-2xl p-6 sm:p-7 transition-all duration-300 cursor-default"
+      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+      initial={{ opacity: 0, y: 30 }}
+      animate={isInView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.5, delay: index * 0.1 }}
+      whileHover={{ y: -4 }}
+    >
+      <div className="relative z-10">
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-all duration-300" style={{ background: bg }}>
+          <Icon size={20} color={color} />
+        </div>
+        <h3 className="text-base font-bold mb-2" style={{ fontFamily: 'Geist, Sora, sans-serif', color: 'var(--color-text)' }}>{title}</h3>
+        <p className="text-sm leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>{description}</p>
+      </div>
+      <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ background: `linear-gradient(135deg, ${color}04, transparent 60%)` }} />
+    </motion.div>
+  )
+}
+
+function FeaturesSection() {
+  const ref = useRef(null)
+  const isInView = useInView(ref, { once: true, margin: '-80px' })
+
+  return (
+    <section id="features" className="py-20 md:py-28 relative overflow-hidden" style={{ background: 'var(--color-surface)' }}>
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] opacity-[0.03] pointer-events-none" style={{ background: 'radial-gradient(ellipse at center, var(--color-primary) 0%, transparent 70%)' }} />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6" ref={ref}>
+        <motion.div
+          className="max-w-2xl mx-auto text-center mb-14"
+          initial={{ opacity: 0, y: 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.5 }}
+        >
+          <SectionLabel>Platform Features</SectionLabel>
+          <SectionTitle>Everything You Need to Farm Smarter</SectionTitle>
+          <SectionDesc>Six integrated AI modules that work together to optimize every aspect of your farm operation.</SectionDesc>
+        </motion.div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6">
+          {features.map((f, i) => (
+            <FeatureCard key={i} {...f} index={i} />
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ---- How It Works ----
+function HowItWorksSection() {
+  const ref = useRef(null)
+  const isInView = useInView(ref, { once: true, margin: '-100px' })
+
+  return (
+    <section id="how-it-works" className="py-20 md:py-28" style={{ background: 'var(--color-surface-2)' }}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6" ref={ref}>
+        <motion.div
+          className="max-w-2xl mx-auto text-center mb-16"
+          initial={{ opacity: 0, y: 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.5 }}
+        >
+          <SectionLabel icon={Zap}>Simple Setup</SectionLabel>
+          <SectionTitle>Get Started in Under 3 Minutes</SectionTitle>
+          <SectionDesc>No technical expertise required. Just connect your farm and let AI do the rest.</SectionDesc>
+        </motion.div>
+        <div className="grid md:grid-cols-3 gap-6 lg:gap-10">
+          {steps.map((step, i) => {
+            const cardRef = useRef(null)
+            const stepInView = useInView(cardRef, { once: true, margin: '-60px' })
+            return (
+              <motion.div
+                key={i}
+                ref={cardRef}
+                className="relative rounded-2xl p-6 sm:p-8 text-center"
+                style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                initial={{ opacity: 0, y: 30 }}
+                animate={stepInView ? { opacity: 1, y: 0 } : {}}
+                transition={{ duration: 0.5, delay: i * 0.15 }}
+              >
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5" style={{ background: 'var(--color-primary-light)' }}>
+                  <step.icon size={28} style={{ color: 'var(--color-primary)' }} />
+                </div>
+                <span className="text-xs font-bold tracking-widest mb-2 block" style={{ color: 'var(--color-primary)' }}>{step.number}</span>
+                <h3 className="text-lg font-bold mb-3" style={{ fontFamily: 'Geist, Sora, sans-serif', color: 'var(--color-text)' }}>{step.title}</h3>
+                <p className="text-sm leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>{step.description}</p>
+                {i < steps.length - 1 && (
+                  <div className="hidden md:block absolute -right-3 top-1/2 -translate-y-1/2 z-10">
+                    <ChevronRight size={20} style={{ color: 'var(--color-text-muted)' }} />
+                  </div>
+                )}
+              </motion.div>
+            )
+          })}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ---- Interactive Demo ----
+function DemoSec() {
+  const ref = useRef(null)
+  const isInView = useInView(ref, { once: true, margin: '-80px' })
+  const { isAuthenticated, isGuest } = useAuth()
+  const { openAuthModal } = useAuthModal()
+
+  const handleGuardedAction = (action: string, itemTitle: string) => {
+    if (!isAuthenticated) {
+      openAuthModal('signup', `Create a free account to ${action} "${itemTitle}"`)
+      return
     }
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Navigation */}
-      <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4">
-          <div className="flex items-center gap-2">
-            <Sprout className="h-8 w-8 text-primary" />
-            <span className="text-xl font-bold">AgriTech</span>
-          </div>
-          <nav className="hidden md:flex items-center gap-6">
-            <a href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-              Features
-            </a>
-            <a href="#how-it-works" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-              How It Works
-            </a>
-            <a href="#benefits" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-              Benefits
-            </a>
-          </nav>
-          <div className="flex items-center gap-3">
-            <Link to="/signin">
-              <Button variant="ghost" size="sm">Sign In</Button>
-            </Link>
-            <Link to="/signup">
-              <Button size="sm">Get Started</Button>
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      {/* Hero Section */}
-      <section className="relative overflow-hidden py-20 md:py-32">
-        <div className="container mx-auto px-4">
-          <div className="mx-auto max-w-4xl text-center">
-            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
-              Smart Farming with{" "}
-              <span className="text-primary">AI-Powered</span> Insights
-            </h1>
-            <p className="mt-6 text-lg text-muted-foreground max-w-2xl mx-auto">
-              Transform your agricultural operations with cutting-edge AI technology.
-              Optimize yields, conserve resources, and make data-driven decisions for a sustainable future.
-            </p>
-            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link to="/signup">
-                <Button size="lg" className="gap-2">
-                  Start Free Trial
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </Link>
-              <Dialog.Root open={loginOpen} onOpenChange={setLoginOpen}>
-                <Link to="/demo">
-                  <Button size="lg" variant="outline" className="gap-2">
-                    Get Started
-                  </Button>
-                </Link>
-                <Dialog.Portal>
-                  <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" />
-                  <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-background rounded-xl border border-border p-6 shadow-2xl z-50">
-                    <Dialog.Title className="text-2xl font-bold text-center">Welcome Back</Dialog.Title>
-                    <Dialog.Description className="text-center text-muted-foreground mb-4">
-                      Sign in to access the demo
-                    </Dialog.Description>
-                    <form onSubmit={handleLogin} className="space-y-4">
-                      {loginError && (
-                        <div className="p-3 text-sm bg-destructive/10 text-destructive rounded-lg">
-                          {loginError}
-                        </div>
-                      )}
-                      <div className="space-y-2">
-                        <Label htmlFor="loginEmail">Email</Label>
-                        <div className="relative">
-                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            id="loginEmail"
-                            type="email"
-                            placeholder="name@example.com"
-                            value={loginEmail}
-                            onChange={(e) => setLoginEmail(e.target.value)}
-                            className="pl-10"
-                            required
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="loginPassword">Password</Label>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            id="loginPassword"
-                            type="password"
-                            placeholder="Enter your password"
-                            value={loginPassword}
-                            onChange={(e) => setLoginPassword(e.target.value)}
-                            className="pl-10"
-                            required
-                          />
-                        </div>
-                      </div>
-                      <Button type="submit" className="w-full" disabled={loginLoading}>
-                        {loginLoading ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Signing in...
-                          </>
-                        ) : (
-                          "Sign In"
-                        )}
-                      </Button>
-                    </form>
-                    <div className="mt-4 text-center text-sm text-muted-foreground">
-                      Don't have an account?{" "}
-                      <Link to="/signup" className="text-primary hover:underline font-medium" onClick={() => setLoginOpen(false)}>
-                        Sign up
-                      </Link>
+    <section className="py-20 md:py-28" style={{ background: 'var(--color-surface)' }}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6" ref={ref}>
+        <motion.div
+          className="max-w-2xl mx-auto text-center mb-14"
+          initial={{ opacity: 0, y: 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.5 }}
+        >
+          <SectionLabel>Interactive Demo</SectionLabel>
+          <SectionTitle>See Your Farm Dashboard</SectionTitle>
+          <SectionDesc>Preview the live farm management interface. Try clicking any action button to get started.</SectionDesc>
+        </motion.div>
+        <motion.div
+          className="max-w-4xl mx-auto"
+          initial={{ opacity: 0, y: 30 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
+          <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-xl)' }}>
+            <div className="p-3 sm:p-4 flex items-center justify-between" style={{ borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface-2)' }}>
+              <div className="flex items-center gap-3">
+                <div className="flex gap-1.5">
+                  <div className="w-3 h-3 rounded-full" style={{ background: '#ef4444' }} />
+                  <div className="w-3 h-3 rounded-full" style={{ background: '#eab308' }} />
+                  <div className="w-3 h-3 rounded-full" style={{ background: '#22c55e' }} />
+                </div>
+                <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>My Farm Dashboard</span>
+              </div>
+              <button
+                onClick={() => {
+                  if (!isAuthenticated) { openAuthModal('signup', 'Create a free account to add plots to your farm'); return }
+                }}
+                className="min-h-[44px] px-4 text-sm font-semibold rounded-xl gap-1.5 inline-flex items-center"
+                style={{ background: 'var(--color-primary)', color: 'white' }}
+              >
+                <Plus size={14} /> Add Plot
+              </button>
+            </div>
+            <div className="divide-y" style={{ borderColor: 'var(--color-border)' }}>
+              {demoItems.map((item) => (
+                <div key={item.id} className="flex flex-col xs:flex-row xs:items-center justify-between p-3 sm:p-4 gap-2 hover:opacity-80 transition-colors">
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-sm font-bold shrink-0"
+                      style={{
+                        background: item.status === 'Ready' ? 'var(--color-success-bg)' : item.status === 'Planned' ? 'var(--color-surface-2)' : 'var(--color-primary-light)',
+                        color: item.status === 'Ready' ? 'var(--color-success)' : item.status === 'Planned' ? 'var(--color-text-muted)' : 'var(--color-primary)',
+                      }}
+                    >
+                      {item.title.charAt(0)}
                     </div>
-                    <Dialog.Close asChild>
-                      <button className="absolute top-4 right-4 rounded-full p-1 hover:bg-muted" aria-label="Close">
-                        <X className="h-4 w-4" />
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate" style={{ color: 'var(--color-text)' }}>{item.title}</div>
+                      <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                        {item.stage} · {item.health > 0 ? `${item.health}% health` : 'Not started'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-0.5 self-end xs:self-auto">
+                    {[
+                      { icon: Edit2, action: 'edit' },
+                      { icon: Heart, action: 'like' },
+                      { icon: Bookmark, action: 'bookmark' },
+                      { icon: Trash2, action: 'delete' },
+                    ].map(({ icon: Icon, action }) => (
+                      <button
+                        key={action}
+                        onClick={() => handleGuardedAction(action, item.title)}
+                        className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg transition-colors hover:opacity-80"
+                        style={{ color: 'var(--color-text-muted)' }}
+                      >
+                        <Icon size={16} />
                       </button>
-                    </Dialog.Close>
-                  </Dialog.Content>
-                </Dialog.Portal>
-              </Dialog.Root>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
+        </motion.div>
+      </div>
+    </section>
+  )
+}
 
-          {/* Hero Image */}
-          <div className="mt-16 relative">
-            <div className="mx-auto max-w-5xl rounded-xl border border-border bg-card p-2 shadow-2xl">
-              <div className="aspect-video rounded-lg bg-muted flex items-center justify-center">
-                <div className="text-center">
-                  <Sprout className="h-24 w-24 text-primary mx-auto mb-4" />
-                  <p className="text-muted-foreground">Farm Dashboard Preview</p>
+// ---- Testimonials ----
+function TestimonialsSection() {
+  const [current, setCurrent] = useState(0)
+  const [isPaused, setIsPaused] = useState(false)
+  const ref = useRef(null)
+  const isInView = useInView(ref, { once: true, margin: '-80px' })
+
+  useEffect(() => {
+    if (isPaused) return
+    const timer = setInterval(() => setCurrent((c) => (c + 1) % testimonials.length), 4000)
+    return () => clearInterval(timer)
+  }, [isPaused])
+
+  return (
+    <section id="testimonials" className="py-20 md:py-28" style={{ background: 'var(--color-surface-2)' }}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6" ref={ref}>
+        <motion.div
+          className="max-w-2xl mx-auto text-center mb-14"
+          initial={{ opacity: 0, y: 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.5 }}
+        >
+          <SectionLabel>Testimonials</SectionLabel>
+          <SectionTitle>What Farmers Say About Us</SectionTitle>
+          <SectionDesc>Hear from farmers who transformed their operations with VaagAi.</SectionDesc>
+        </motion.div>
+        <motion.div
+          className="max-w-3xl mx-auto"
+          initial={{ opacity: 0, y: 30 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          onMouseEnter={() => setIsPaused(true)}
+          onMouseLeave={() => setIsPaused(false)}
+        >
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={current}
+              className="rounded-2xl p-6 sm:p-8 md:p-10 text-center"
+              style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+              initial={{ opacity: 0, x: 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -40 }}
+              transition={{ duration: 0.4 }}
+            >
+              <Quote size={28} className="mx-auto mb-4" style={{ color: 'var(--color-primary)' }} />
+              <p className="text-base sm:text-lg mb-6 leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
+                &ldquo;{testimonials[current].text}&rdquo;
+              </p>
+              <StarRating rating={testimonials[current].rating} />
+              <div className="flex items-center justify-center gap-3 mt-4">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0" style={{ background: 'var(--color-primary)' }}>
+                  {testimonials[current].avatar}
+                </div>
+                <div className="text-left">
+                  <div className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>{testimonials[current].name}</div>
+                  <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{testimonials[current].role} · {testimonials[current].company}</div>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section id="features" className="py-20 bg-muted/50">
-        <div className="container mx-auto px-4">
-          <div className="mx-auto max-w-2xl text-center mb-16">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Everything You Need to Modernize Your Farm
-            </h2>
-            <p className="mt-4 text-muted-foreground">
-              Comprehensive tools designed to help you grow smarter, not harder.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((feature, index) => (
-              <Card key={index} className="border-border/50 bg-background/50 backdrop-blur">
-                <CardHeader>
-                  <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                    <feature.icon className="h-6 w-6 text-primary" />
-                  </div>
-                  <CardTitle>{feature.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="text-base">
-                    {feature.description}
-                  </CardDescription>
-                </CardContent>
-              </Card>
+            </motion.div>
+          </AnimatePresence>
+          <div className="flex items-center justify-center gap-2 mt-6">
+            {testimonials.map((_, i) => (
+              <button key={i} onClick={() => setCurrent(i)} className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full transition-all">
+                <span className="rounded-full transition-all" style={{ background: i === current ? 'var(--color-primary)' : 'var(--color-border)', width: i === current ? 24 : 8, height: 8 }} />
+              </button>
             ))}
           </div>
-        </div>
-      </section>
+        </motion.div>
+      </div>
+    </section>
+  )
+}
 
-      {/* How It Works */}
-      <section id="how-it-works" className="py-20">
-        <div className="container mx-auto px-4">
-          <div className="mx-auto max-w-2xl text-center mb-16">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              How It Works
-            </h2>
-            <p className="mt-4 text-muted-foreground">
-              Get started in minutes with our simple four-step process
-            </p>
-          </div>
+// ---- Pricing ----
+function PricingSection() {
+  const ref = useRef(null)
+  const isInView = useInView(ref, { once: true, margin: '-80px' })
+  const navigate = useNavigate()
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {steps.map((step, index) => (
-              <div key={index} className="relative">
-                <div className="flex flex-col items-center text-center">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-xl font-bold text-primary-foreground">
-                    {step.number}
-                  </div>
-                  <h3 className="mt-6 text-lg font-semibold">{step.title}</h3>
-                  <p className="mt-2 text-sm text-muted-foreground">{step.description}</p>
+  return (
+    <section id="pricing" className="py-20 md:py-28" style={{ background: 'var(--color-surface)' }}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6" ref={ref}>
+        <motion.div
+          className="max-w-2xl mx-auto text-center mb-14"
+          initial={{ opacity: 0, y: 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.5 }}
+        >
+          <SectionLabel>Pricing</SectionLabel>
+          <SectionTitle>Simple, Transparent Pricing</SectionTitle>
+          <SectionDesc>Start free. Upgrade when you need more power. No hidden fees, no long-term contracts.</SectionDesc>
+        </motion.div>
+        <div className="grid md:grid-cols-3 gap-6 lg:gap-8 max-w-5xl mx-auto">
+          {pricingPlans.map((plan, i) => (
+            <motion.div
+              key={plan.name}
+              className="relative rounded-2xl p-6 sm:p-8 flex flex-col transition-all duration-300"
+              style={{
+                background: plan.popular ? 'var(--color-surface)' : 'var(--color-surface-2)',
+                border: plan.popular ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
+                boxShadow: plan.popular ? 'var(--shadow-primary-lg)' : 'var(--shadow-sm)',
+              }}
+              initial={{ opacity: 0, y: 30 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.5, delay: i * 0.1 }}
+              whileHover={{ y: -4 }}
+            >
+              {plan.popular && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-xs font-bold" style={{ background: 'var(--color-primary)', color: 'white' }}>
+                  Most Popular
                 </div>
-                {index < steps.length - 1 && (
-                  <ChevronRight className="absolute top-8 -right-4 h-6 w-6 text-muted-foreground rotate-0 md:rotate-90 lg:rotate-0 lg:right-auto lg:top-8 lg:-right-8 hidden md:block" />
+              )}
+              <div className="mb-6">
+                <h3 className="text-lg font-bold mb-1" style={{ fontFamily: 'Geist, Sora, sans-serif', color: 'var(--color-text)' }}>{plan.name}</h3>
+                <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{plan.description}</p>
+              </div>
+              <div className="mb-6">
+                <span className="text-3xl font-extrabold" style={{ fontFamily: 'Geist, Sora, sans-serif', color: 'var(--color-text)' }}>{plan.price}</span>
+                {plan.period && <span className="text-sm" style={{ color: 'var(--color-text-muted)' }}> {plan.period}</span>}
+              </div>
+              <ul className="space-y-3 mb-8 flex-1">
+                {plan.features.map((f) => (
+                  <li key={f} className="flex items-start gap-2.5 text-sm">
+                    <Check size={16} className="shrink-0 mt-0.5" style={{ color: 'var(--color-success)' }} />
+                    <span style={{ color: 'var(--color-text-secondary)' }}>{f}</span>
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={() => navigate('/signup')}
+                className="w-full min-h-[44px] rounded-xl text-sm font-semibold transition-all"
+                style={{
+                  background: plan.popular ? 'var(--color-primary)' : 'var(--color-surface-3)',
+                  color: plan.popular ? 'white' : 'var(--color-text)',
+                  border: plan.popular ? 'none' : '1px solid var(--color-border)',
+                }}
+              >
+                {plan.cta}
+              </button>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ---- FAQ ----
+function FAQSection() {
+  const [open, setOpen] = useState<number | null>(null)
+  const ref = useRef(null)
+  const isInView = useInView(ref, { once: true, margin: '-80px' })
+
+  return (
+    <section id="faq" className="py-20 md:py-28" style={{ background: 'var(--color-surface-2)' }}>
+      <div className="max-w-3xl mx-auto px-4 sm:px-6" ref={ref}>
+        <motion.div
+          className="max-w-2xl mx-auto text-center mb-14"
+          initial={{ opacity: 0, y: 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.5 }}
+        >
+          <SectionLabel>FAQ</SectionLabel>
+          <SectionTitle>Frequently Asked Questions</SectionTitle>
+          <SectionDesc>Everything you need to know about VaagAi.</SectionDesc>
+        </motion.div>
+        <motion.div
+          className="space-y-3"
+          initial={{ opacity: 0, y: 20 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
+          {faqs.map((faq, i) => (
+            <div
+              key={i}
+              className="rounded-2xl overflow-hidden transition-all duration-200"
+              style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', cursor: 'pointer' }}
+            >
+              <button
+                onClick={() => setOpen(open === i ? null : i)}
+                className="w-full min-h-[44px] flex items-center justify-between p-4 sm:p-5 text-left"
+              >
+                <span className="text-sm sm:text-base font-medium pr-4" style={{ color: 'var(--color-text)' }}>{faq.q}</span>
+                <motion.div
+                  animate={{ rotate: open === i ? 180 : 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex-shrink-0"
+                  style={{ color: 'var(--color-text-muted)' }}
+                >
+                  <ChevronDown size={18} />
+                </motion.div>
+              </button>
+              <AnimatePresence>
+                {open === i && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <p className="px-4 sm:px-5 pb-4 sm:pb-5 text-sm leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
+                      {faq.a}
+                    </p>
+                  </motion.div>
                 )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+              </AnimatePresence>
+            </div>
+          ))}
+        </motion.div>
+      </div>
+    </section>
+  )
+}
 
-      {/* Benefits / Stats */}
-      <section id="benefits" className="py-20 bg-primary text-primary-foreground">
-        <div className="container mx-auto px-4">
-          <div className="mx-auto max-w-2xl text-center mb-16">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Proven Results
-            </h2>
-            <p className="mt-4 text-primary-foreground/80">
-              Join thousands of farmers who have transformed their operations
+// ---- CTA Banner ----
+function CTABanner() {
+  const navigate = useNavigate()
+  const ref = useRef(null)
+  const isInView = useInView(ref, { once: true, margin: '-100px' })
+
+  return (
+    <section className="py-20 md:py-28 relative overflow-hidden" ref={ref}>
+      <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, var(--color-primary), #0f3a0f)' }} />
+      {[
+        { size: 200, x: '5%', y: '10%' },
+        { size: 150, x: '85%', y: '60%' },
+        { size: 100, x: '50%', y: '80%' },
+      ].map((s, i) => (
+        <motion.div
+          key={i}
+          className="absolute rounded-full"
+          style={{ width: s.size, height: s.size, background: 'rgba(255,255,255,0.04)', left: s.x, top: s.y }}
+          animate={{ y: [0, -15, 0] }}
+          transition={{ duration: 5 + i * 2, repeat: Infinity, ease: 'easeInOut' }}
+        />
+      ))}
+      <motion.div
+        className="relative max-w-7xl mx-auto px-4 sm:px-6 text-center"
+        initial={{ opacity: 0, y: 30 }}
+        animate={isInView ? { opacity: 1, y: 0 } : {}}
+        transition={{ duration: 0.6 }}
+        style={{ maxWidth: '42rem' }}
+      >
+        <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4" style={{ fontFamily: 'Geist, Sora, sans-serif' }}>
+          Ready to Transform Your Farm?
+        </h2>
+        <p className="text-white/70 mb-8 max-w-xl mx-auto text-sm sm:text-base">
+          Join <strong className="text-white">10,000+</strong> farmers who are using VaagAi to increase yields, reduce costs, and grow smarter.
+        </p>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 max-w-md mx-auto">
+          <input
+            type="email"
+            placeholder="Enter your email"
+            className="w-full min-h-[48px] px-5 rounded-2xl text-sm"
+            style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: 'white' }}
+          />
+          <button onClick={() => navigate('/signup')} className="min-h-[48px] px-6 rounded-2xl font-semibold gap-1.5 inline-flex items-center shrink-0" style={{ background: 'white', color: 'var(--color-primary)' }}>
+            Join Now <ArrowRight size={16} />
+          </button>
+        </div>
+      </motion.div>
+    </section>
+  )
+}
+
+// ---- Footer ----
+function Footer() {
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' })
+
+  return (
+    <footer style={{ background: '#0a120a', color: '#e8f0e8' }}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 mb-10 sm:mb-12">
+          <div className="col-span-2 md:col-span-1">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--color-primary)' }}>
+                <Sprout size={18} color="white" />
+              </div>
+              <span className="font-bold">VaagAi</span>
+            </div>
+            <p className="text-sm mb-4" style={{ color: 'rgba(255,255,255,0.4)' }}>
+              AI-powered smart farming platform helping farmers optimize yields and grow smarter.
             </p>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary-foreground/10 mb-4">
-                  <stat.icon className="h-6 w-6 text-primary-foreground" />
-                </div>
-                <div className="text-4xl font-bold">{stat.value}</div>
-                <div className="mt-1 text-primary-foreground/80">{stat.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-20">
-        <div className="container mx-auto px-4">
-          <Card className="mx-auto max-w-4xl bg-gradient-to-br from-primary to-primary/80 border-0">
-            <CardContent className="p-12 text-center">
-              <h2 className="text-3xl font-bold text-primary-foreground">
-                Ready to Transform Your Farm?
-              </h2>
-              <p className="mt-4 text-primary-foreground/90 max-w-xl mx-auto">
-                Join over 10,000 farmers who are already using AgriTech to increase yields and reduce costs.
-              </p>
-              <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Link to="/signup">
-                  <Button size="lg" variant="secondary" className="gap-2">
-                    Get Started Free
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </Link>
-                <Button size="lg" variant="outline" className="bg-transparent border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">
-                  Contact Sales
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t border-border py-12 bg-muted/30">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <Sprout className="h-6 w-6 text-primary" />
-                <span className="text-lg font-bold">AgriTech</span>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Smart farming solutions for the modern agricultural industry.
-              </p>
+            <div className="flex gap-3">
+              {[MessageCircle, Code2, Share2, Video].map((Icon, i) => (
+                <a key={i} href="#" className="min-h-[44px] min-w-[44px] rounded-xl flex items-center justify-center transition-colors" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                  <Icon size={16} />
+                </a>
+              ))}
             </div>
-            <div>
-              <h4 className="font-semibold mb-4">Product</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#features" className="hover:text-foreground">Features</a></li>
-                <li><a href="#" className="hover:text-foreground">Pricing</a></li>
-                <li><a href="#" className="hover:text-foreground">Documentation</a></li>
+          </div>
+          {[
+            { title: 'Company', links: ['About', 'Blog', 'Careers', 'Press'] },
+            { title: 'Product', links: ['Features', 'Integrations', 'API Docs'] },
+            { title: 'Resources', links: ['Documentation', 'Help Center', 'Community', 'Status'] },
+          ].map((col) => (
+            <div key={col.title}>
+              <h4 className="text-sm font-semibold mb-4">{col.title}</h4>
+              <ul className="space-y-2.5">
+                {col.links.map((link) => (
+                  <li key={link}>
+                    <a href="#" className="text-sm transition-colors min-h-[36px] flex items-center" style={{ color: 'rgba(255,255,255,0.4)' }}>{link}</a>
+                  </li>
+                ))}
               </ul>
             </div>
-            <div>
-              <h4 className="font-semibold mb-4">Company</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#" className="hover:text-foreground">About</a></li>
-                <li><a href="#" className="hover:text-foreground">Blog</a></li>
-                <li><a href="#" className="hover:text-foreground">Careers</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Legal</h4>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="#" className="hover:text-foreground">Privacy</a></li>
-                <li><a href="#" className="hover:text-foreground">Terms</a></li>
-                <li><a href="#" className="hover:text-foreground">Security</a></li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-border pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-sm text-muted-foreground">
-              &copy; {new Date().getFullYear()} AgriTech. All rights reserved.
-            </p>
-            <div className="flex items-center gap-4">
-              <a href="#" className="text-muted-foreground hover:text-foreground">
-                <span className="sr-only">Twitter</span>
-                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M8.29 20.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0022 5.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.072 4.072 0 012.8 9.713v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 012 18.407a11.616 11.616 0 006.29 1.84" /></svg>
-              </a>
-              <a href="#" className="text-muted-foreground hover:text-foreground">
-                <span className="sr-only">GitHub</span>
-                <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" /></svg>
-              </a>
-            </div>
+          ))}
+        </div>
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 sm:pt-8" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+          <p className="text-sm" style={{ color: 'rgba(255,255,255,0.35)' }}>
+            &copy; {new Date().getFullYear()} VaagAi Smart Farm. All rights reserved.
+          </p>
+          <div className="flex items-center gap-4">
+            <button onClick={scrollToTop} className="min-h-[44px] min-w-[44px] rounded-xl flex items-center justify-center transition-colors" style={{ background: 'rgba(255,255,255,0.08)' }}>
+              <ArrowUp size={16} />
+            </button>
           </div>
         </div>
-      </footer>
+      </div>
+    </footer>
+  )
+}
+
+// ---- Main Landing ----
+export default function Landing() {
+  const [darkMode, setDarkMode] = useState(() => document.documentElement.classList.contains('dark'))
+
+  const toggleDark = () => {
+    const next = !darkMode
+    setDarkMode(next)
+    document.documentElement.classList.toggle('dark', next)
+  }
+
+  return (
+    <div style={{ overflowX: 'hidden' }}>
+      <NavBar />
+      <HeroSection />
+      <TrustedBySection />
+      <StatsBar />
+      <FeaturesSection />
+      <HowItWorksSection />
+      <DemoSec />
+      <TestimonialsSection />
+      <PricingSection />
+      <FAQSection />
+      <CTABanner />
+      <Footer />
+
+      <button
+        onClick={toggleDark}
+        className="fixed bottom-6 right-6 z-40 min-h-[44px] min-w-[44px] rounded-full flex items-center justify-center shadow-lg transition-colors"
+        style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
+      >
+        {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+      </button>
     </div>
   )
 }

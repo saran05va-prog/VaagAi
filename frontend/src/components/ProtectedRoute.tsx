@@ -19,6 +19,7 @@ import type { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import { useAuth as useLegacyAuth } from '../contexts/AuthContext'
 
 interface ProtectedRouteProps {
   children: ReactNode
@@ -26,6 +27,7 @@ interface ProtectedRouteProps {
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { session, loading } = useAuth()
+  const { isGuest, isAuthenticated: legacyAuth } = useLegacyAuth()
   const location = useLocation()
 
   if (loading) {
@@ -39,10 +41,10 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     )
   }
 
-  if (!session) {
-    const next = encodeURIComponent(location.pathname + location.search)
-    return <Navigate to={`/login?next=${next}`} replace />
+  if (session || isGuest || legacyAuth) {
+    return <>{children}</>
   }
 
-  return <>{children}</>
+  const next = encodeURIComponent(location.pathname + location.search)
+  return <Navigate to={`/login?next=${next}`} replace />
 }

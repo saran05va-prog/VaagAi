@@ -74,7 +74,7 @@ export default function Economics() {
 
   return (
     <div className="page-container">
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           {/* Input Form */}
           <div className="card" style={{ padding: '28px', borderColor: 'var(--color-border)' }}>
             <div className="flex items-center gap-2 mb-5">
@@ -256,6 +256,5 @@ export default function Economics() {
           </div>
         </div>
       </div>
-    </div>
   )
 }

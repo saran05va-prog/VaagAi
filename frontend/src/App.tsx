@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from './lib/queryClient'
 import { Toaster } from 'sonner'
+import { AuthModalProvider } from './contexts/AuthModalContext'
+import { AuthProvider } from './contexts/AuthContext'
 
 // Layout
 import AppLayout from './components/AppLayout'
@@ -50,6 +52,8 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Toaster position="top-right" richColors closeButton />
+      <AuthProvider>
+      <AuthModalProvider>
       <AuthModal />
       <BrowserRouter>
         <Routes>
@@ -88,6 +92,8 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
+      </AuthModalProvider>
+      </AuthProvider>
     </QueryClientProvider>
   )
 }

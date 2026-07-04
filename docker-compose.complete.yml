@@ -1,0 +1,125 @@
+# ========================================
+# SMART AI FARMING PLATFORM
+# Complete Docker Compose (Frontend + Backend)
+# ========================================
+
+services:
+  # MySQL Database
+  db:
+    image: mysql:8.0
+    container_name: vaagai-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-vaagai}
+      MYSQL_USER: ${MYSQL_USER:-vaagai}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-password}
+    volumes:
+      - mysqldata:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vaagai-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: vaagai-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redisdata:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vaagai-network
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: vaagai-backend
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=production
+      - PORT=3002
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - DATABASE_URL=mysql://${MYSQL_USER:-vaagai}:${MYSQL_PASSWORD:-password}@db:3306/${MYSQL_DATABASE:-vaagai}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=7d
+      - REFRESH_TOKEN_EXPIRES_IN=30d
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL}
+      - RESEND_FROM_NAME=${RESEND_FROM_NAME}
+      - AGMARKNET_API_KEY=${AGMARKNET_API_KEY}
+      - WEATHER_API_KEY=${WEATHER_API_KEY}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-https://yourdomain.com}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
+      - FRONTEND_URL=${FRONTEND_URL:-https://yourdomain.com}
+      - OTP_EXPIRY_MINUTES=10
+      - OTP_LENGTH=6
+      - MAX_FILE_SIZE=10485760
+      - RATE_LIMIT_WINDOW_MS=900000
+      - RATE_LIMIT_MAX_REQUESTS=100
+      - LOG_LEVEL=info
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - vaagai-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: vaagai-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+      - "3443:443"
+    environment:
+      - VITE_API_URL=http://backend:3002
+      - VITE_SOCKET_URL=http://backend:3002
+      - VITE_APP_NAME=VaagAi
+      - VITE_GROQ_API_KEY=${GROQ_API_KEY}
+      - VITE_WEATHER_API_KEY=${WEATHER_API_KEY}
+      - VITE_AGMARKNET_API_KEY=${AGMARKNET_API_KEY}
+    depends_on:
+      - backend
+    networks:
+      - vaagai-network
+
+networks:
+  vaagai-network:
+    driver: bridge
+
+volumes:
+  mysqldata:
+  redisdata:

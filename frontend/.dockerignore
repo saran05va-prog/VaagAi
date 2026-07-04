@@ -1,8 +1,8 @@
 node_modules
 dist
-.env
-.env.local
 .git
 .gitignore
 README.md
+.env
+.env.local
 *.tsbuildinfo

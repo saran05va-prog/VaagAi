@@ -1,0 +1,33 @@
+# Docker Compose for RAG Service
+# Usage: docker-compose -f rag/docker-compose.yml up -d
+
+services:
+  rag:
+    build:
+      context: ..
+      dockerfile: rag/Dockerfile
+    container_name: vaagai-rag
+    ports:
+      - "8001:8001"
+    environment:
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-all-MiniLM-L6-v2}
+      - LLM_MODEL=${LLM_MODEL:-llama-3-70b-versatile}
+      - CHROMA_PERSIST_DIRECTORY=/app/data/chroma_db
+      - DOCUMENTS_DIRECTORY=/app/data/documents
+      - CHUNK_SIZE=${CHUNK_SIZE:-500}
+      - CHUNK_OVERLAP=${CHUNK_OVERLAP:-50}
+      - TOP_K=${TOP_K:-5}
+    volumes:
+      - rag_data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  rag_data:
+    driver: local

@@ -1,0 +1,22 @@
+# VaagAI Python Backend Requirements
+fastapi>=0.109.0
+uvicorn>=0.27.0
+python-dotenv>=1.0.0
+pydantic>=2.5.0
+motor>=3.3.0
+
+# ML & Image Processing
+torch>=2.0.0
+torchvision>=0.15.0
+Pillow>=10.0.0
+opencv-python>=4.8.0
+numpy>=1.24.0
+
+# LLM
+google-generativeai>=0.3.0
+
+# Optional: Segment Anything
+# segment-anything>=1.0.0
+
+# File handling
+python-multipart>=0.0.6
