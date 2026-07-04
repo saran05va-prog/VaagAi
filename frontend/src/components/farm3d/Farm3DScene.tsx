@@ -1,6 +1,6 @@
 import { useRef, useMemo, useState, useEffect } from 'react'
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
-import { OrbitControls, Sky, Html, Billboard, Text, useTexture } from '@react-three/drei'
+import { OrbitControls, Sky, Html, Billboard } from '@react-three/drei'
 import * as THREE from 'three'
 import { useFarmStore, CROP_TYPES, type CropPlot, type GrowthStage, type WeatherCondition } from './farmStore'
 
@@ -487,7 +487,7 @@ function FarmAnimals() {
 function WeatherEffects() {
   const weather = useFarmStore((s) => s.weather)
   const isNight = useFarmStore((s) => s.isNight)
-  const { mode, intensity } = getWeatherCondition(weather?.condition, isNight)
+  const { mode, intensity } = getWeatherMode(weather?.condition, isNight)
   const rainRef = useRef<THREE.LineSegments>(null)
   const cloudRef = useRef<THREE.Group>(null)
 
@@ -568,7 +568,7 @@ function DynamicLighting() {
   const isNight = useFarmStore((s) => s.isNight)
   const weather = useFarmStore((s) => s.weather)
   const dayPhase = useFarmStore((s) => s.dayPhase)
-  const { mode, intensity } = getWeatherCondition(weather?.condition, isNight)
+  const { mode, intensity } = getWeatherMode(weather?.condition, isNight)
 
   const ambientLevel = isNight ? 0.08 : mode === 'rainy' ? 0.3 * intensity : mode === 'cloudy' ? 0.5 * (0.5 + intensity * 0.5) : 0.6
   const sunLevel = isNight ? 0.02 : mode === 'rainy' ? 0.3 * intensity : mode === 'cloudy' ? 0.5 * (0.4 + intensity * 0.6) : 1.0
@@ -629,7 +629,7 @@ export function FarmScene() {
   const weather = useFarmStore((s) => s.weather)
   const isNight = useFarmStore((s) => s.isNight)
   const dayPhase = useFarmStore((s) => s.dayPhase)
-  const { mode } = getWeatherCondition(weather?.condition, isNight)
+  const { mode } = getWeatherMode(weather?.condition, isNight)
 
   const [isDragging, setIsDragging] = useState(false)
   const dragState = useRef<null | { cropId: string; startPoint: { x: number; z: number }; initial: { x: number; z: number; width: number; depth: number } }>(null)

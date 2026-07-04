@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import FarmScene from './Farm3DScene'
 import Farm3DUIControls from './Farm3DUIControls'
 import Sidebar from '../Sidebar'
-import { Menu, X, Bell, Zap } from 'lucide-react'
+import { Menu, X, Bell } from 'lucide-react'
 
 export default function FarmPage() {
   const navigate = useNavigate()

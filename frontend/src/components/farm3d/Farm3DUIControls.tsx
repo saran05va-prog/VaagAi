@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useFarmStore, CROP_TYPES, type CropPlot, type FarmState, type FinancialRecord } from './farmStore'
 import {
-  Cloud, CloudRain, Sun, Moon, Wind, Droplets, Thermometer, Gauge,
+  Sprout, Cloud, CloudRain, Sun, Moon, Wind, Droplets, Thermometer, Gauge,
   Plus, Trash2, Move, Maximize2, MousePointer, Edit3, Save, X,
   RefreshCw, MapPin, Ruler, Calendar, Leaf, Settings,
-  Sprout, TrendingUp, DollarSign, Activity, AlertTriangle, CheckCircle2,
+  TrendingUp, DollarSign, Activity, AlertTriangle, CheckCircle2,
   Clock, Tractor, BarChart3, ArrowUpRight, ArrowDownRight,
   Layers, Eye, EyeOff, Grid3X3, Camera,
+  Info, Map, Zap,
 } from 'lucide-react'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002'
@@ -427,12 +428,12 @@ function CropEditorPanel() {
           <div>
             <label className="text-[10px] text-gray-500">Planted</label>
             <p className="text-xs text-gray-300">{new Date(selectedPlot.plantedDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
-            <p className="text-[10px] text-gray-500">{daysGone} days ago</p>
+            <p className="text-[10px] text-gray-500">{daysGrown} days ago</p>
           </div>
           <div>
             <label className="text-[10px] text-gray-500">Harvest</label>
             <p className="text-xs text-gray-400">{new Date(selectedPlot.expectedHarvest).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
-            <p className="text-[10px] text-gray-500">{daysToPlant - daysGrown} days left</p>
+            <p className="text-[10px] text-gray-500">{daysToHarvest - daysGrown} days left</p>
           </div>
         </div>
 
