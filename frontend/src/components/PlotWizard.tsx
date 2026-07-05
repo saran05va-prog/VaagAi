@@ -590,7 +590,7 @@ export default function PlotWizard({ onClose }: PlotWizardProps) {
     }
 
     const cropInfo = CROP_TYPES[crop.cropType] || CROP_TYPES.rice
-    const createdId = `plot_${Date.now()}`
+    const createdId = `plot_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 
     try {
       addCrop({

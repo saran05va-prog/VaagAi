@@ -11,6 +11,16 @@ interface User {
   createdAt?: string
 }
 
+interface SignupData {
+  email: string
+  password: string
+  firstName: string
+  lastName?: string
+  farmName?: string
+  farmLocation?: string
+  farmArea?: number
+}
+
 interface AuthContextType {
   user: User | null
   token: string | null
@@ -18,7 +28,7 @@ interface AuthContextType {
   isGuest: boolean
   loading: boolean
   login: (email: string, password: string) => Promise<void>
-  signup: (email: string, password: string, firstName: string, lastName?: string) => Promise<void>
+  signup: (data: SignupData) => Promise<void>
   logout: () => void
   refreshUser: () => Promise<void>
   enterGuestMode: () => void
@@ -78,8 +88,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsGuest(false)
   }, [])
 
-  const signup = useCallback(async (email: string, password: string, firstName: string, lastName?: string) => {
-    const res = await api.post('/api/auth/signup', { email, password, firstName, lastName })
+  const signup = useCallback(async (data: SignupData) => {
+    const { email, password, firstName, lastName, farmName, farmLocation, farmArea } = data
+    const res = await api.post('/api/auth/signup', { email, password, firstName, lastName, farmName, farmLocation, farmArea })
     const { token: newToken, user: userData } = res.data
     localStorage.setItem('vaagai_token', newToken)
     setToken(newToken)

@@ -2,18 +2,21 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useAuthModal } from '../contexts/AuthModalContext'
 import { useFarmStore } from './farm3d/farmStore'
-import { X, Eye, EyeOff, Sprout, Loader2, Tractor, Ruler } from 'lucide-react'
+import { useSettingsStore } from '../stores/settingsStore'
+import { X, Eye, EyeOff, Sprout, Loader2, Tractor, Ruler, MapPin } from 'lucide-react'
 import { toast } from 'sonner'
 
 type Tab = 'login' | 'signup'
+type SignupStep = 'farm' | 'credentials'
 
 export default function AuthModal() {
   const { isOpen, initialTab, closeAuthModal, message: modalMessage } = useAuthModal()
   const { login, signup, isAuthenticated } = useAuth()
   const { setFarmName, setTotalArea } = useFarmStore()
+  const s = useSettingsStore()
 
   const [tab, setTab] = useState<Tab>(initialTab)
-  const [step, setStep] = useState<'credentials' | 'farm'>('credentials')
+  const [step, setStep] = useState<SignupStep>('farm')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [firstName, setFirstName] = useState('')
@@ -23,27 +26,29 @@ export default function AuthModal() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [farmNameDraft, setFarmNameDraft] = useState('')
+  const [farmLocation, setFarmLocation] = useState('')
   const [farmArea, setFarmArea] = useState('')
 
   useEffect(() => {
     setTab(initialTab)
-    setStep('credentials')
+    setStep('farm')
     setEmail('')
     setPassword('')
     setFirstName('')
     setLastName('')
     setConfirmPassword('')
     setFarmNameDraft('')
+    setFarmLocation('')
     setFarmArea('')
     setError('')
     setShowPassword(false)
   }, [initialTab, isOpen])
 
   useEffect(() => {
-    if (isAuthenticated && step === 'credentials') {
+    if (isAuthenticated) {
       closeAuthModal()
     }
-  }, [isAuthenticated, closeAuthModal, step])
+  }, [isAuthenticated, closeAuthModal])
 
   if (!isOpen) return null
 
@@ -75,22 +80,31 @@ export default function AuthModal() {
     }
     setLoading(true)
     try {
-      await signup(email, password, firstName, lastName || undefined)
+      const areaNum = parseFloat(farmArea)
+      await signup({
+        email,
+        password,
+        firstName,
+        lastName: lastName || undefined,
+        farmName: farmNameDraft.trim() || undefined,
+        farmLocation: farmLocation.trim() || undefined,
+        farmArea: isNaN(areaNum) ? undefined : areaNum,
+      })
       toast.success('Account created successfully')
-      setStep('farm')
+      if (farmNameDraft.trim()) setFarmName(farmNameDraft.trim())
+      if (!isNaN(areaNum) && areaNum > 0) setTotalArea(areaNum)
+      s.setProfile({
+        firstName,
+        lastName: lastName || '',
+        farmName: farmNameDraft.trim(),
+        location: farmLocation.trim(),
+      })
+      closeAuthModal()
     } catch (err: any) {
       setError(err.response?.data?.error || err.message || 'Signup failed')
     } finally {
       setLoading(false)
     }
-  }
-
-  const handleFarmSetup = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (farmNameDraft.trim()) setFarmName(farmNameDraft.trim())
-    const area = parseFloat(farmArea)
-    if (!isNaN(area) && area > 0) setTotalArea(area)
-    closeAuthModal()
   }
 
   return (
@@ -113,10 +127,10 @@ export default function AuthModal() {
             <Sprout size={24} style={{ color: '#34d399' }} />
           </div>
           <h2 className="text-lg font-bold" style={{ color: '#eefdf0', fontFamily: 'Sora, sans-serif' }}>
-            {step === 'farm' ? 'Your Farm' : tab === 'login' ? 'Welcome Back' : 'Create Account'}
+            {tab === 'login' ? 'Welcome Back' : step === 'farm' ? 'Your Farm' : 'Create Account'}
           </h2>
           <p className="text-xs mt-1" style={{ color: '#8dbf96' }}>
-            {step === 'farm' ? 'Tell us about your farm' : tab === 'login' ? 'Sign in to continue' : 'Start your smart farming journey'}
+            {tab === 'login' ? 'Sign in to continue' : step === 'farm' ? 'Tell us about your farm' : 'Set up your credentials'}
           </p>
         </div>
 
@@ -149,11 +163,29 @@ export default function AuthModal() {
           </button>
         </div>
 
-        {step === 'farm' && tab === 'signup' ? (
-          <form onSubmit={handleFarmSetup} className="px-6 pb-6 space-y-4">
-            <div className="p-3 rounded-lg text-xs text-center" style={{ background: 'rgba(16,185,129,0.08)', color: '#8ff0ab', border: '1px solid rgba(16,185,129,0.12)' }}>
-              Account created! Set up your farm to get started.
+        {tab === 'signup' && step === 'farm' ? (
+          <form onSubmit={(e) => { e.preventDefault(); setStep('credentials') }} className="px-6 pb-6 space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: '#8dbf96' }}>First name</label>
+                <input
+                  type="text" value={firstName} onChange={e => setFirstName(e.target.value)}
+                  placeholder="John" required
+                  className="w-full px-3 py-2 text-sm rounded-xl outline-none transition-colors"
+                  style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(123,207,137,0.12)', color: '#eefdf0' }}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: '#8dbf96' }}>Last name</label>
+                <input
+                  type="text" value={lastName} onChange={e => setLastName(e.target.value)}
+                  placeholder="Doe"
+                  className="w-full px-3 py-2 text-sm rounded-xl outline-none transition-colors"
+                  style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(123,207,137,0.12)', color: '#eefdf0' }}
+                />
+              </div>
             </div>
+
             <div>
               <label className="block text-xs font-medium mb-1" style={{ color: '#8dbf96' }}>
                 <Tractor size={14} className="inline mr-1" /> Farm name
@@ -165,45 +197,42 @@ export default function AuthModal() {
                 style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(123,207,137,0.12)', color: '#eefdf0' }}
               />
             </div>
+
+            <div>
+              <label className="block text-xs font-medium mb-1" style={{ color: '#8dbf96' }}>
+                <MapPin size={14} className="inline mr-1" /> Location
+              </label>
+              <input
+                type="text" value={farmLocation} onChange={e => setFarmLocation(e.target.value)}
+                placeholder="City, State, Country" required
+                className="w-full px-3 py-2 text-sm rounded-xl outline-none transition-colors"
+                style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(123,207,137,0.12)', color: '#eefdf0' }}
+              />
+            </div>
+
             <div>
               <label className="block text-xs font-medium mb-1" style={{ color: '#8dbf96' }}>
                 <Ruler size={14} className="inline mr-1" /> Total area (hectares)
               </label>
               <input
                 type="number" value={farmArea} onChange={e => setFarmArea(e.target.value)}
-                placeholder="e.g. 2.5" min="0" step="0.1"
+                placeholder="e.g. 2.5" min="0" step="0.1" required
                 className="w-full px-3 py-2 text-sm rounded-xl outline-none transition-colors"
                 style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(123,207,137,0.12)', color: '#eefdf0' }}
               />
             </div>
+
             <button type="submit"
               className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all"
               style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399', border: '1px solid rgba(16,185,129,0.25)' }}>
-              Start Farming
+              Continue to Sign Up
             </button>
           </form>
         ) : (
           <form onSubmit={tab === 'login' ? handleLogin : handleSignup} className="px-6 pb-6 space-y-3">
-            {tab === 'signup' && (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium mb-1" style={{ color: '#8dbf96' }}>First name</label>
-                  <input
-                    type="text" value={firstName} onChange={e => setFirstName(e.target.value)}
-                    placeholder="John" required
-                    className="w-full px-3 py-2 text-sm rounded-xl outline-none transition-colors"
-                    style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(123,207,137,0.12)', color: '#eefdf0' }}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium mb-1" style={{ color: '#8dbf96' }}>Last name</label>
-                  <input
-                    type="text" value={lastName} onChange={e => setLastName(e.target.value)}
-                    placeholder="Doe"
-                    className="w-full px-3 py-2 text-sm rounded-xl outline-none transition-colors"
-                    style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(123,207,137,0.12)', color: '#eefdf0' }}
-                  />
-                </div>
+            {error && (
+              <div className="p-2.5 rounded-lg text-xs" style={{ background: 'rgba(239,68,68,0.12)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.15)' }}>
+                {error}
               </div>
             )}
 
@@ -246,12 +275,6 @@ export default function AuthModal() {
               </div>
             )}
 
-            {error && (
-              <div className="p-2.5 rounded-lg text-xs" style={{ background: 'rgba(239,68,68,0.12)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.15)' }}>
-                {error}
-              </div>
-            )}
-
             <button type="submit" disabled={loading}
               className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-all"
               style={{
@@ -262,6 +285,14 @@ export default function AuthModal() {
               {loading ? <Loader2 size={16} className="animate-spin" /> : null}
               {tab === 'login' ? 'Sign In' : 'Create Account'}
             </button>
+
+            {tab === 'signup' && (
+              <button type="button" onClick={() => { setStep('farm'); setError('') }}
+                className="w-full text-xs text-center py-1"
+                style={{ color: '#7fb58a' }}>
+                &larr; Back to farm details
+              </button>
+            )}
           </form>
         )}
       </div>

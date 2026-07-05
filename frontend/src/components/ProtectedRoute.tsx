@@ -1,25 +1,9 @@
-/**
- * ProtectedRoute — gate any route behind a Supabase session.
- *
- * Behaviour:
- *   - While loading (INITIAL_SESSION not yet fired), show a neutral
- *     loading state. Never flash a redirect on cold reload.
- *   - If no session, redirect to /login and remember where the user
- *     was trying to go via ?next=<path>.
- *   - If session exists, render children.
- *
- * Does NOT replace the existing `ProtectedRoute` defined inline in
- * App.tsx (which reads localStorage.getItem('vaagai_token')). App.tsx
- * will be updated to import THIS one in Phase 1.5(a) — the inline
- * definition can stay or be removed in the same commit. See the
- * route-wiring commit message.
- */
-
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { useAuth as useLegacyAuth } from '../contexts/AuthContext'
+import { useAuthModal } from '../contexts/AuthModalContext'
 
 interface ProtectedRouteProps {
   children: ReactNode
@@ -28,7 +12,15 @@ interface ProtectedRouteProps {
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { session, loading } = useAuth()
   const { isGuest, isAuthenticated: legacyAuth } = useLegacyAuth()
+  const { openAuthModal } = useAuthModal()
   const location = useLocation()
+
+  useEffect(() => {
+    if (!loading && !session && !isGuest && !legacyAuth) {
+      const path = location.pathname === '/' ? '' : ` ${location.pathname}`
+      openAuthModal('signup', `Create a free account to access${path}`)
+    }
+  }, [loading, session, isGuest, legacyAuth, openAuthModal, location.pathname])
 
   if (loading) {
     return (
@@ -45,6 +37,5 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     return <>{children}</>
   }
 
-  const next = encodeURIComponent(location.pathname + location.search)
-  return <Navigate to={`/login?next=${next}`} replace />
+  return <Navigate to="/" replace />
 }

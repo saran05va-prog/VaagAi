@@ -34,6 +34,10 @@ import irrigationRoutes from './modules/irrigation/irrigation.controller'
 import economicsRoutes from './modules/economics/economics.controller'
 import farmRoutes from './modules/farm/farm.controller'
 
+// AI Copilot
+import copilotRoutes from './ai/api/copilot.routes'
+import adminRoutes from './ai/api/admin.routes'
+
 // Initialize Express
 const app = express()
 const httpServer = createServer(app)
@@ -123,6 +127,10 @@ app.use('/api/irrigation', irrigationRoutes)
 app.use('/api/economics', economicsRoutes)
 app.use('/api/farm', farmRoutes)
 app.use('/api/crop-outcome', profileRoutes)
+
+// AI Copilot
+app.use('/api/ai', copilotRoutes)
+app.use('/api/admin/ai', adminRoutes)
 
 // API documentation endpoint
 app.get('/api', (req, res) => {

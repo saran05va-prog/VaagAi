@@ -57,7 +57,7 @@ export default function SeverityGauge({
         </div>
         {confidence !== undefined && (
           <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-            {t('cropDoctor.severity.confidence', { confidence })}
+            {t('cropDoctor.severity.confidence_prefix')}{confidence !== undefined ? ` ${Math.round(confidence)}%` : ''}
           </div>
         )}
       </div>

@@ -519,17 +519,25 @@ export function getTasksForDay(cropKey: string, dayNumber: number, weatherCondit
   const stage = getStageForDay(cropKey, dayNumber)
   if (!stage) return { stage: null, tasks: [], adaptation: null }
 
+  const seen = new Set<string>()
   const tasks: any[] = []
   const dayInStage = dayNumber - stage.startDay + 1
 
+  const push = (t: any, freq: string, priority: string) => {
+    if (!seen.has(t.task)) {
+      seen.add(t.task)
+      tasks.push({ ...t, time: t.time || (freq === 'daily' ? undefined : freq === 'every 2 days' ? '08:30' : '09:00'), frequency: freq, priority })
+    }
+  }
+
   if (stage.tasks.daily) {
-    stage.tasks.daily.forEach((t: any) => tasks.push({ ...t, frequency: 'daily', priority: 'high' }))
+    stage.tasks.daily.forEach((t: any) => push(t, 'daily', 'high'))
   }
   if (stage.tasks.everyOtherDay && dayInStage % 2 === 0) {
-    stage.tasks.everyOtherDay.forEach((t: any) => tasks.push({ ...t, time: '08:30', frequency: 'every 2 days', priority: 'medium' }))
+    stage.tasks.everyOtherDay.forEach((t: any) => push(t, 'every 2 days', 'medium'))
   }
   if (stage.tasks.weekly && dayInStage % 7 === 1) {
-    stage.tasks.weekly.forEach((t: any) => tasks.push({ ...t, time: '09:00', frequency: 'weekly', priority: 'low' }))
+    stage.tasks.weekly.forEach((t: any) => push(t, 'weekly', 'low'))
   }
 
   let adaptation = null

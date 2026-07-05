@@ -126,6 +126,7 @@ function NavBar() {
   const [activeSection, setActiveSection] = useState('')
   const navigate = useNavigate()
   const { isAuthenticated, isGuest, logout } = useAuth()
+  const { openAuthModal } = useAuthModal()
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20)
@@ -168,11 +169,17 @@ function NavBar() {
     >
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 flex h-16 items-center justify-between">
         <button onClick={() => navigate('/')} className="flex items-center gap-2 shrink-0">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--color-primary)' }}>
-            <Sprout size={20} color="white" />
+          <div className="flex items-center justify-center rounded-xl shadow-md" style={{ width: 38, height: 38, background: 'linear-gradient(135deg, #7bf1a8 0%, #2e7d32 52%, #11361a 100%)' }}>
+            <svg width="24" height="24" viewBox="0 0 64 64" fill="none">
+              <path d="M32 50 L32 30" stroke="white" strokeWidth={3.5} strokeLinecap="round" />
+              <path d="M32 34 C24 34 18 28 18 20 C26 20 32 26 32 34 Z" fill="white" />
+              <path d="M32 30 C40 30 46 24 46 16 C38 16 32 22 32 30 Z" fill="white" />
+              <circle cx="32" cy="14" r="3" fill="#aaffcc" />
+              <circle cx="32" cy="14" r="1.5" fill="white" />
+            </svg>
           </div>
-          <span className="text-lg font-bold" style={{ fontFamily: 'Geist, Sora, sans-serif', color: scrolled ? 'var(--color-text)' : 'white' }}>
-            Vaag<span style={{ color: scrolled ? 'var(--color-primary)' : '#4ade80' }}>Ai</span>
+          <span className="text-lg font-bold" style={{ fontFamily: 'Sora, sans-serif', color: scrolled ? 'var(--color-text)' : 'white' }}>
+            Vaag<span style={{ color: scrolled ? 'var(--color-primary)' : '#7bf1a8' }}>Ai</span>
           </span>
         </button>
 
@@ -203,10 +210,10 @@ function NavBar() {
             </button>
           ) : (
             <>
-              <button onClick={() => navigate('/login')} className="min-h-[44px] px-4 text-sm font-medium rounded-xl transition-colors" style={{ color: scrolled ? 'var(--color-text-secondary)' : 'rgba(255,255,255,0.85)' }}>
+              <button onClick={() => openAuthModal('login')} className="min-h-[44px] px-4 text-sm font-medium rounded-xl transition-colors" style={{ color: scrolled ? 'var(--color-text-secondary)' : 'rgba(255,255,255,0.85)' }}>
                 Log in
               </button>
-              <button onClick={() => navigate('/signup')} className="min-h-[44px] px-5 text-sm font-semibold rounded-xl gap-1.5 inline-flex items-center" style={{ background: scrolled ? 'var(--color-primary)' : 'rgba(255,255,255,0.15)', color: 'white', boxShadow: scrolled ? 'var(--shadow-primary)' : 'none', border: scrolled ? 'none' : '1px solid rgba(255,255,255,0.2)' }}>
+              <button onClick={() => openAuthModal('signup')} className="min-h-[44px] px-5 text-sm font-semibold rounded-xl gap-1.5 inline-flex items-center" style={{ background: scrolled ? 'var(--color-primary)' : 'rgba(255,255,255,0.15)', color: 'white', boxShadow: scrolled ? 'var(--shadow-primary)' : 'none', border: scrolled ? 'none' : '1px solid rgba(255,255,255,0.2)' }}>
                 Get Started <ChevronRight size={15} />
               </button>
             </>
@@ -240,10 +247,16 @@ function NavBar() {
             >
               <div className="flex items-center justify-between px-4 h-16 shrink-0" style={{ borderBottom: '1px solid var(--color-border)' }}>
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--color-primary)' }}>
-                    <Sprout size={18} color="white" />
+                  <div className="flex items-center justify-center rounded-lg shadow-sm" style={{ width: 34, height: 34, background: 'linear-gradient(135deg, #7bf1a8 0%, #2e7d32 52%, #11361a 100%)' }}>
+                    <svg width="20" height="20" viewBox="0 0 64 64" fill="none">
+                      <path d="M32 50 L32 30" stroke="white" strokeWidth={3.5} strokeLinecap="round" />
+                      <path d="M32 34 C24 34 18 28 18 20 C26 20 32 26 32 34 Z" fill="white" />
+                      <path d="M32 30 C40 30 46 24 46 16 C38 16 32 22 32 30 Z" fill="white" />
+                      <circle cx="32" cy="14" r="3" fill="#aaffcc" />
+                      <circle cx="32" cy="14" r="1.5" fill="white" />
+                    </svg>
                   </div>
-                  <span className="font-bold" style={{ fontFamily: 'Geist, Sora, sans-serif' }}>VaagAi</span>
+                  <span className="font-bold" style={{ fontFamily: 'Sora, sans-serif' }}>Vaag<span style={{ color: '#7bf1a8' }}>Ai</span></span>
                 </div>
                 <button onClick={() => setMobileOpen(false)} className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg" style={{ color: 'var(--color-text-secondary)' }} aria-label="Close menu">
                   <X size={20} />
@@ -264,7 +277,7 @@ function NavBar() {
               </div>
               <div className="px-3 py-4 shrink-0 space-y-2" style={{ borderTop: '1px solid var(--color-border)' }}>
                 {isGuest ? (
-                  <button onClick={() => navigate('/signup')} className="w-full min-h-[44px] rounded-xl text-sm font-semibold" style={{ background: 'var(--color-primary)', color: 'white' }}>
+                  <button onClick={() => openAuthModal('signup')} className="w-full min-h-[44px] rounded-xl text-sm font-semibold" style={{ background: 'var(--color-primary)', color: 'white' }}>
                     Sign Up Free
                   </button>
                 ) : isAuthenticated ? (
@@ -273,7 +286,7 @@ function NavBar() {
                   </button>
                 ) : (
                   <>
-                    <button onClick={() => navigate('/login')} className="w-full min-h-[44px] rounded-xl text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>
+                    <button onClick={() => openAuthModal('login')} className="w-full min-h-[44px] rounded-xl text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>
                       Log in
                     </button>
                     <button onClick={() => navigate('/signup')} className="w-full min-h-[44px] rounded-xl text-sm font-semibold inline-flex items-center justify-center gap-1.5" style={{ background: 'var(--color-primary)', color: 'white' }}>
@@ -985,10 +998,16 @@ function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 mb-10 sm:mb-12">
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--color-primary)' }}>
-                <Sprout size={18} color="white" />
+              <div className="flex items-center justify-center rounded-lg shadow-sm" style={{ width: 34, height: 34, background: 'linear-gradient(135deg, #7bf1a8 0%, #2e7d32 52%, #11361a 100%)' }}>
+                <svg width="20" height="20" viewBox="0 0 64 64" fill="none">
+                  <path d="M32 50 L32 30" stroke="white" strokeWidth={3.5} strokeLinecap="round" />
+                  <path d="M32 34 C24 34 18 28 18 20 C26 20 32 26 32 34 Z" fill="white" />
+                  <path d="M32 30 C40 30 46 24 46 16 C38 16 32 22 32 30 Z" fill="white" />
+                  <circle cx="32" cy="14" r="3" fill="#aaffcc" />
+                  <circle cx="32" cy="14" r="1.5" fill="white" />
+                </svg>
               </div>
-              <span className="font-bold">VaagAi</span>
+              <span className="font-bold">Vaag<span style={{ color: '#7bf1a8' }}>Ai</span></span>
             </div>
             <p className="text-sm mb-4" style={{ color: 'rgba(255,255,255,0.4)' }}>
               AI-powered smart farming platform helping farmers optimize yields and grow smarter.

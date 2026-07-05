@@ -1,7 +1,7 @@
 import { useLanguage } from '../contexts/LanguageContext'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
-  Tractor, Sprout, TrendingUp, Bot, Calendar,
+  Tractor, Sprout, TrendingUp, Bot, Calendar, Bug, ScrollText,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
@@ -9,7 +9,9 @@ const NAV_ITEMS = [
   { to: '/recommendations', label: 'Crops', icon: Sprout },
   { to: '/market', label: 'Market', icon: TrendingUp },
   { to: '/calendar', label: 'Calendar', icon: Calendar },
-  { to: '/assistant', label: 'AI', icon: Bot },
+  { to: '/copilot', label: 'Copilot', icon: Bot },
+  { to: '/crop-doctor', label: 'Doctor', icon: Bug },
+  { to: '/disease-history', label: 'History', icon: ScrollText },
 ]
 
 export default function MobileBottomNav() {

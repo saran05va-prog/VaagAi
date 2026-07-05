@@ -107,8 +107,8 @@ export default function FilterBar({ filters, onChange, plotOptions, resultCount 
                 style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
               >
                 <option value="">{t('cropDoctor.filter.allPlots')}</option>
-                {plotOptions.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
+                {plotOptions.map((p, i) => (
+                  <option key={`${p.id}-${i}`} value={p.id}>{p.name}</option>
                 ))}
               </select>
             </div>
@@ -139,7 +139,7 @@ export default function FilterBar({ filters, onChange, plotOptions, resultCount 
             </button>
           )}
           <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-            {t('cropDoctor.filter.resultCount', { n: resultCount })}
+            {`${resultCount} result${resultCount > 1 ? 's' : ''}`}
           </div>
         </div>
       )}

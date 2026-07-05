@@ -59,7 +59,7 @@ export default function PlotDetails() {
 
     const plantedDate = form.plantedDate || new Date().toISOString().slice(0, 10)
     const crop = CROP_TYPES[form.cropType] || CROP_TYPES.rice
-    const createdId = `plot_${Date.now()}`
+    const createdId = `plot_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 
     addCrop({
       id: createdId,

@@ -110,7 +110,7 @@ export default function Economics() {
               <div>
                 <label className="label">{t('economics.cropType')}</label>
                 <select name="crop" value={form.crop} onChange={handleCropChange} className="input select capitalize">
-                  {crops.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {crops.map((c, i) => <option key={`${c.id}-${i}`} value={c.id}>{c.name}</option>)}
                 </select>
                 {priceHint && <p className="text-xs mt-1" style={{ color: 'var(--color-primary)' }}>{priceHint}</p>}
               </div>

@@ -1,14 +1,22 @@
-import { useRef, useState } from 'react'
-import { Canvas, type ThreeEvent } from '@react-three/fiber'
+import { useRef, useState, useEffect, useMemo } from 'react'
+import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber'
 import { OrbitControls, Sky, Html, Billboard } from '@react-three/drei'
-
 import * as THREE from 'three'
 import { useFarmStore, type CropPlot } from './farmStore'
 import { Terrain } from './Terrain'
 import { Structures } from './Structures'
 import { Environment } from './Environment'
-import { WeatherEffects, DynamicLighting } from './Weather'
+import { WeatherEffects, DynamicLighting, getColorTemperature } from './Weather'
 import CropInstance from './crops/CropInstance'
+
+const QUALITY = (() => {
+  const cores = navigator.hardwareConcurrency || 4
+  const mem = (navigator as any).deviceMemory || 8
+  const mobile = /Android|iPhone|iPad|Mobi/i.test(navigator.userAgent)
+  if (mobile || cores <= 4 || mem <= 4) return 'low' as const
+  if (cores <= 6 || mem <= 6) return 'medium' as const
+  return 'high' as const
+})()
 
 function CameraController() {
   const cameraMode = useFarmStore((s) => s.cameraMode)
@@ -17,6 +25,11 @@ function CameraController() {
       enablePan={cameraMode !== 'top'}
       enableRotate={cameraMode !== 'top'}
       enableZoom
+      enableDamping
+      dampingFactor={0.08}
+      rotateSpeed={0.35}
+      zoomSpeed={0.5}
+      panSpeed={0.35}
       minDistance={4}
       maxDistance={40}
       maxPolarAngle={cameraMode === 'top' ? 0.15 : Math.PI / 2 - 0.05}
@@ -50,7 +63,7 @@ function CropFields({
   onPointerDown: (crop: CropPlot, e: ThreeEvent<PointerEvent>) => void
   showLabels: boolean
 }) {
-  const { removeCrop } = useFarmStore()
+  const removeCrop = useFarmStore((s) => s.removeCrop)
 
   return (
     <>
@@ -59,17 +72,12 @@ function CropFields({
         return (
           <group
             key={crop.id}
-            onPointerDown={(e) => { e.stopPropagation(); onPointerDown(crop, e) }}
-            onClick={(e) => {
-              e.stopPropagation()
-              if (editMode && selectedTool === 'delete') { removeCrop(crop.id); return }
-              onSelect(isSelected ? null : crop.id)
-            }}
+            position={[crop.x, 0, crop.z]}
           >
-            <CropInstance crop={crop} isSelected={isSelected} showLabel={showLabels} />
+            <CropInstance crop={crop} isSelected={isSelected} />
 
             {showLabels && (
-              <Billboard position={[crop.x, 1.5 + (crop.cropType === 'fruits' ? 1.5 : 0), crop.z]}>
+              <Billboard position={[0, 1.5 + (crop.cropType === 'fruits' ? 1.5 : 0), 0]}>
                 <Html center distanceFactor={12}>
                   <div className="flex flex-col items-center pointer-events-none select-none">
                     <div className="px-2 py-0.5 rounded text-[10px] font-semibold whitespace-nowrap"
@@ -84,6 +92,20 @@ function CropFields({
                 </Html>
               </Billboard>
             )}
+
+            <mesh
+              rotation={[-Math.PI / 2, 0, 0]}
+              position={[0, 0.05, 0]}
+              onPointerDown={(e) => { e.stopPropagation(); onPointerDown(crop, e) }}
+              onClick={(e) => {
+                e.stopPropagation()
+                if (editMode && selectedTool === 'delete') { removeCrop(crop.id); return }
+                onSelect(isSelected ? null : crop.id)
+              }}
+            >
+              <planeGeometry args={[crop.width, crop.depth]} />
+              <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+            </mesh>
           </group>
         )
       })}
@@ -91,14 +113,64 @@ function CropFields({
   )
 }
 
-export function FarmScene() {
-  const {
-    crops, selectedCrop, selectCrop, showGrid, showLabels,
-    editMode, selectedTool, updateCrop, addCrop, removeCrop,
-  } = useFarmStore()
+function SceneAtmosphere() {
+  const { gl } = useThree()
   const weather = useFarmStore((s) => s.weather)
   const isNight = useFarmStore((s) => s.isNight)
-  const dayPhase = useFarmStore((s) => s.dayPhase)
+  const currentTime = useFarmStore((s) => s.currentTime)
+  const hour = currentTime.getHours() + currentTime.getMinutes() / 60
+  const colors = useMemo(() => getColorTemperature(hour), [hour])
+
+  useEffect(() => {
+    gl.toneMappingExposure = isNight ? 0.85 : hour < 7 || hour > 19 ? 0.95 : 1.35
+    gl.setClearColor(colors.sky)
+  }, [gl, colors.sky, isNight, hour])
+
+  const fogNear = isNight ? 20 : hour < 7 ? 22 : hour > 19 ? 20 : 28
+  const fogFar = 55
+
+  const skyTurbidity = isNight ? 10 : hour < 7 || hour > 19 ? 6 : weather?.condition === 'heavy_rain' ? 8 : weather?.condition === 'cloudy' ? 4 : 0.5
+  const skyRayleigh = hour < 7 || hour > 19 ? 3.5 : hour < 9 || hour > 17 ? 2.5 : 1.2
+  const skyMie = weather?.condition === 'heavy_rain' ? 0.05 : 0.006
+
+  const sunPosForSky: [number, number, number] = isNight
+    ? [-100, -10, -100]
+    : hour < 7 ? [30, 4, 20] : hour < 9 ? [60, 10, 50] : hour < 17 ? [100, 30, 100] : hour < 19 ? [-60, 10, -50] : [-30, 4, -20]
+
+  return (
+    <>
+      <fog attach="fog" args={[colors.fog, fogNear, fogFar]} />
+      {!isNight && (
+        <Sky
+          sunPosition={sunPosForSky}
+          turbidity={skyTurbidity}
+          rayleigh={skyRayleigh}
+          mieCoefficient={skyMie}
+          mieDirectionalG={0.9}
+        />
+      )}
+    </>
+  )
+}
+
+export function FarmScene() {
+  const crops = useFarmStore((s) => s.crops)
+  const selectedCrop = useFarmStore((s) => s.selectedCrop)
+  const selectCrop = useFarmStore((s) => s.selectCrop)
+  const showGrid = useFarmStore((s) => s.showGrid)
+  const showLabels = useFarmStore((s) => s.showLabels)
+  const editMode = useFarmStore((s) => s.editMode)
+  const selectedTool = useFarmStore((s) => s.selectedTool)
+  const updateCrop = useFarmStore((s) => s.updateCrop)
+  const addCrop = useFarmStore((s) => s.addCrop)
+  const isNight = useFarmStore((s) => s.isNight)
+
+  const clickGuard = useRef(false)
+  const [showEnvironment, setShowEnvironment] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setShowEnvironment(true), 80)
+    return () => clearTimeout(t)
+  }, [])
 
   const [isDragging, setIsDragging] = useState(false)
   const dragState = useRef<null | { cropId: string; startX: number; startZ: number; initX: number; initZ: number }>(null)
@@ -136,7 +208,10 @@ export function FarmScene() {
 
   const handleGroundClick = (e: ThreeEvent<MouseEvent>) => {
     if (!editMode || selectedTool !== 'add') { if (!editMode) selectCrop(null); return }
-    const id = `plot_${Date.now()}`
+    if (clickGuard.current) return
+    clickGuard.current = true
+    setTimeout(() => { clickGuard.current = false }, 500)
+    const id = `plot_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
     const now = new Date()
     const harvest = new Date(now); harvest.setDate(harvest.getDate() + 90)
     addCrop({
@@ -150,47 +225,38 @@ export function FarmScene() {
     selectCrop(id)
   }
 
-  const skyColor = isNight ? '#0a0a1a' : weather?.condition === 'heavy_rain' ? '#5A6B7B' : weather?.condition === 'cloudy' ? '#8CA8C0' : '#4A90D9'
-  const fogColor = skyColor
-  const fogNear = isNight ? 15 : 22
-  const fogFar = 45
+  const dpr = QUALITY === 'low' ? [1, 1] : QUALITY === 'medium' ? [1, 1.25] : [1, 1.5]
+  const shadowMapSize = QUALITY === 'low' ? 512 : QUALITY === 'medium' ? 768 : 1024
+  const toneMapping = isNight ? 0.85 : 1.35
 
   return (
     <Canvas
-      shadows
+      shadows={QUALITY !== 'low'}
+      dpr={dpr}
       camera={{ position: [14, 12, 14], fov: 50 }}
       gl={{
         toneMapping: THREE.ACESFilmicToneMapping,
-        toneMappingExposure: 1.1,
-        antialias: true,
+        toneMappingExposure: toneMapping,
+        antialias: QUALITY !== 'low',
         powerPreference: 'high-performance',
         failIfMajorPerformanceCaveat: false,
       }}
-      onCreated={({ gl }) => {
-        gl.setClearColor(skyColor)
+      onCreated={({ gl: g }) => {
+        g.setClearColor('#1a1a3a')
       }}
       onError={console.error}
-      style={{ background: skyColor }}
+      style={{ background: '#1a1a3a' }}
     >
-      <DynamicLighting />
-      <fog attach="fog" args={[fogColor, fogNear, fogFar]} />
-
-      <Sky
-        sunPosition={dayPhase === 'dawn' ? [30, 4, 20] : dayPhase === 'dusk' ? [-30, 4, -20] : [100, 30, 100]}
-        turbidity={isNight ? 10 : weather?.condition === 'heavy_rain' ? 8 : weather?.condition === 'cloudy' ? 4 : 0.5}
-        rayleigh={dayPhase === 'dawn' || dayPhase === 'dusk' ? 4 : 1.2}
-        mieCoefficient={weather?.condition === 'heavy_rain' ? 0.05 : 0.006}
-        mieDirectionalG={0.9}
-      />
-
+      <SceneAtmosphere />
+      <DynamicLighting shadowMapSize={shadowMapSize} />
       <WeatherEffects />
       <Terrain />
 
-      <group onClick={handleGroundClick}>
+      <group>
         {showGrid && <gridHelper args={[40, 20, '#2D5016', '#2D5016']} position={[0, 0.01, 0]} />}
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} visible={false}>
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]} onClick={handleGroundClick}>
           <planeGeometry args={[40, 40]} />
-          <meshBasicMaterial />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         </mesh>
       </group>
 
@@ -205,7 +271,7 @@ export function FarmScene() {
       />
 
       <Structures crops={crops} />
-      <Environment />
+      {showEnvironment && <Environment quality={QUALITY} />}
 
       {editMode && selectedTool === 'resize' && selectedCrop && (() => {
         const crop = crops.find((c) => c.id === selectedCrop)

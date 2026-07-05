@@ -159,6 +159,7 @@ export interface FarmState {
   cameraMode: 'free' | 'top' | 'follow'
   uiPanel: 'none' | 'analytics' | 'equipment' | 'finances' | 'tasks' | 'soil'
   notificationCount: number
+  taskCompletions: Record<string, Record<string, string[]>>
 
   setFarmName: (name: string) => void
   setLocation: (location: FarmState['location']) => void
@@ -193,6 +194,9 @@ export interface FarmState {
   setCameraMode: (mode: FarmState['cameraMode']) => void
   setUiPanel: (panel: FarmState['uiPanel']) => void
   setNotificationCount: (count: number) => void
+  setTaskCompletions: (completions: Record<string, Record<string, string[]>>) => void
+  markTaskComplete: (plotId: string, dateKey: string, taskId: string) => void
+  unmarkTaskComplete: (plotId: string, dateKey: string, taskId: string) => void
 }
 
 export const CROP_TYPES: Record<string, {
@@ -433,6 +437,15 @@ const updateSoilBasedOnTime = (soil: SoilData, date: Date): SoilData => {
   }
 }
 
+function deduplicateCrops(crops: CropPlot[]): CropPlot[] {
+  const seen = new Set<string>()
+  return crops.filter((c) => {
+    if (seen.has(c.id)) return false
+    seen.add(c.id)
+    return true
+  })
+}
+
 export const useFarmStore = create<FarmState>()(
   persist(
     (set, get) => ({
@@ -466,6 +479,7 @@ export const useFarmStore = create<FarmState>()(
       cameraMode: 'free',
       uiPanel: 'none',
       notificationCount: 2,
+      taskCompletions: {},
 
       setFarmName: (name) => set({ farmName: name }),
       setLocation: (location) => set({ location }),
@@ -473,7 +487,10 @@ export const useFarmStore = create<FarmState>()(
       setSoil: (data) => set((state) => ({ soil: { ...state.soil, ...data } })),
       updateSoil: () => set((state) => ({ soil: updateSoilBasedOnTime(state.soil, state.currentTime) })),
 
-      addCrop: (crop) => set((state) => ({ crops: [...state.crops, crop] })),
+      addCrop: (crop) => set((state) => {
+        if (state.crops.some((c) => c.id === crop.id)) return state
+        return { crops: [...state.crops, crop] }
+      }),
       updateCrop: (id, data) => set((state) => ({
         crops: state.crops.map((c) => (c.id === id ? { ...c, ...data } : c)),
       })),
@@ -548,9 +565,41 @@ export const useFarmStore = create<FarmState>()(
       setCameraMode: (cameraMode) => set({ cameraMode }),
       setUiPanel: (uiPanel) => set({ uiPanel }),
       setNotificationCount: (count) => set({ notificationCount: count }),
+      setTaskCompletions: (completions) => set({ taskCompletions: completions }),
+      markTaskComplete: (plotId, dateKey, taskId) => set((state) => {
+        const plot = state.taskCompletions[plotId]
+        const day = (plot && plot[dateKey]) || []
+        return {
+          taskCompletions: {
+            ...state.taskCompletions,
+            [plotId]: {
+              ...(plot || {}),
+              [dateKey]: [...day, taskId],
+            },
+          },
+        }
+      }),
+      unmarkTaskComplete: (plotId, dateKey, taskId) => set((state) => {
+        const plot = state.taskCompletions[plotId]
+        const day = (plot && plot[dateKey]) || []
+        return {
+          taskCompletions: {
+            ...state.taskCompletions,
+            [plotId]: {
+              ...(plot || {}),
+              [dateKey]: day.filter((id: string) => id !== taskId),
+            },
+          },
+        }
+      }),
     }),
     {
       name: 'vaagai-farm-storage',
+      merge: (persisted, current) => {
+        const merged = { ...current, ...persisted }
+        if (merged.crops) merged.crops = deduplicateCrops(merged.crops)
+        return merged
+      },
       partialize: (state) => ({
         farmName: state.farmName,
         location: state.location,
@@ -568,6 +617,7 @@ export const useFarmStore = create<FarmState>()(
         finances: state.finances,
         insights: state.insights,
         sensors: state.sensors,
+        taskCompletions: state.taskCompletions,
       }),
     }
   )

@@ -1,402 +1,251 @@
-import { useMemo, useRef } from 'react'
+import { useMemo, useRef, useEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { useFarmStore, type CropPlot, type GrowthStage, CROP_TYPES } from '../farmStore'
+import { type CropPlot, type GrowthStage, CROP_TYPES } from '../farmStore'
 
 const STAGE_SCALES: Record<GrowthStage, number> = {
-  seedling: 0.2,
-  vegetative: 0.45,
-  flowering: 0.7,
-  fruiting: 0.88,
-  harvest: 1.0,
+  seedling: 0.2, vegetative: 0.45, flowering: 0.7, fruiting: 0.88, harvest: 1.0,
 }
 
-function lerpColor(a: THREE.Color, b: THREE.Color, t: number) {
-  return a.clone().lerp(b, t)
+const MAX_PLANTS = 400
+
+function getHealthColor(health: number, base: string): string {
+  const c = new THREE.Color(base)
+  if (health > 75) return c.getStyle()
+  if (health > 50) return c.clone().lerp(new THREE.Color('#9B8B3A'), (75 - health) / 25).getStyle()
+  if (health > 25) return new THREE.Color('#9B8B3A').lerp(new THREE.Color('#8B6914'), (50 - health) / 25).getStyle()
+  return new THREE.Color('#8B6914').lerp(new THREE.Color('#6B4226'), (25 - health) / 25).getStyle()
 }
 
-function getHealthColor(health: number, base: THREE.Color) {
-  if (health > 75) return base
-  if (health > 50) return lerpColor(base, new THREE.Color('#9B8B3A'), (75 - health) / 25)
-  if (health > 25) return lerpColor(new THREE.Color('#9B8B3A'), new THREE.Color('#8B6914'), (50 - health) / 25)
-  return lerpColor(new THREE.Color('#8B6914'), new THREE.Color('#6B4226'), (25 - health) / 25)
+interface PartDef {
+  geo: THREE.BufferGeometry
+  color: string
+  offsetY: number
 }
 
-function RicePlant({ scale, health, stage }: { scale: number; health: number; stage: GrowthStage }) {
-  const baseColor = new THREE.Color('#7CB342')
-  const stemColor = new THREE.Color('#558B2F')
-  const grainColor = new THREE.Color('#D4A843')
-  const leafColor = getHealthColor(health, baseColor)
+interface FruitDef extends PartDef {
+  count: number
+  spread: number
+}
 
-  const height = 0.5 * scale
-  const stems = useMemo(() => {
-    const arr: { angle: number; tilt: number; h: number }[] = []
-    for (let i = 0; i < 5; i++) {
-      arr.push({ angle: (i / 5) * Math.PI * 2, tilt: 0.15 + Math.random() * 0.1, h: height * (0.8 + Math.random() * 0.3) })
+interface ConfigResult {
+  stem: PartDef | null
+  foliage: PartDef & { extraInstances?: number }
+  fruit: FruitDef | null
+}
+
+function getConfig(crop: CropPlot, scale: number): ConfigResult {
+  const cd = CROP_TYPES[crop.cropType] || CROP_TYPES.rice
+  const hasFruit = crop.stage === 'fruiting' || crop.stage === 'harvest'
+  const leafColor = getHealthColor(crop.health, cd.color || '#4CAF50')
+  const stemColor = cd.stemColor || '#558B2F'
+  const fruitColor = cd.fruitColor || '#FF6B6B'
+
+  const leafColorVibrant = getHealthColor(crop.health, cd.color || '#4CAF50')
+  const leafBrighter = new THREE.Color(leafColorVibrant).offsetHSL(0, 0.08, 0.06).getStyle()
+
+  switch (crop.cropType) {
+    case 'rice': {
+      const h = 0.5 * scale
+      return {
+        stem: { geo: new THREE.CylinderGeometry(0.01, 0.015, h, 4), color: stemColor, offsetY: h / 2 },
+        foliage: { geo: new THREE.ConeGeometry(0.04, 0.12 * scale, 4), color: leafBrighter, offsetY: h * 0.7 },
+        fruit: hasFruit ? { geo: new THREE.SphereGeometry(0.015, 4, 4), color: fruitColor, offsetY: h, count: 3, spread: 0.04 } : null,
+      }
     }
-    return arr
-  }, [height])
-
-  return (
-    <group>
-      {stems.map((s, i) => (
-        <group key={i} rotation={[s.tilt * Math.cos(s.angle), s.angle, s.tilt * Math.sin(s.angle)]}>
-          <mesh position={[0, s.h / 2, 0]}>
-            <cylinderGeometry args={[0.008, 0.015, s.h, 4]} />
-            <meshStandardMaterial color={stemColor} roughness={0.85} />
-          </mesh>
-          {[0, 1, 2].map((k) => (
-            <mesh key={k} position={[0.04, s.h * (0.4 + k * 0.18), 0]} rotation={[0, 0, 0.6 + k * 0.15]}>
-              <planeGeometry args={[0.12, 0.025]} />
-              <meshStandardMaterial color={leafColor} roughness={0.8} side={THREE.DoubleSide} />
-            </mesh>
-          ))}
-          {(stage === 'fruiting' || stage === 'harvest') && (
-            <group position={[0, s.h + 0.05, 0]}>
-              {Array.from({ length: 8 }).map((_, j) => {
-                const a = (j / 8) * Math.PI * 2
-                const r = 0.05
-                return (
-                  <mesh key={j} position={[Math.cos(a) * r, -j * 0.012, Math.sin(a) * r]}>
-                    <sphereGeometry args={[0.012, 4, 4]} />
-                    <meshStandardMaterial color={grainColor} roughness={0.5} />
-                  </mesh>
-                )
-              })}
-            </group>
-          )}
-        </group>
-      ))}
-    </group>
-  )
+    case 'wheat': {
+      const h = 0.55 * scale
+      return {
+        stem: { geo: new THREE.CylinderGeometry(0.008, 0.015, h, 4), color: stemColor, offsetY: h / 2 },
+        foliage: { geo: new THREE.ConeGeometry(0.035, 0.1 * scale, 4), color: leafBrighter, offsetY: h * 0.7 },
+        fruit: hasFruit ? { geo: new THREE.SphereGeometry(0.012, 4, 4), color: fruitColor, offsetY: h, count: 2, spread: 0.03 } : null,
+      }
+    }
+    case 'corn': {
+      const h = 0.7 * scale
+      return {
+        stem: { geo: new THREE.CylinderGeometry(0.02, 0.04, h, 5), color: stemColor, offsetY: h / 2 },
+        foliage: { geo: new THREE.ConeGeometry(0.06, 0.25 * scale, 5), color: leafBrighter, offsetY: h * 0.6 },
+        fruit: hasFruit ? { geo: new THREE.CylinderGeometry(0.035, 0.04, 0.12 * scale, 6), color: fruitColor, offsetY: h * 0.5, count: 1, spread: 0 } : null,
+      }
+    }
+    case 'tomato': {
+      const h = 0.4 * scale
+      return {
+        stem: { geo: new THREE.CylinderGeometry(0.012, 0.02, h, 4), color: stemColor, offsetY: h / 2 },
+        foliage: { geo: new THREE.SphereGeometry(0.1 * scale, 6, 5), color: leafBrighter, offsetY: h * 0.7 },
+        fruit: hasFruit ? { geo: new THREE.SphereGeometry(0.04 * scale, 6, 6), color: fruitColor, offsetY: h * 0.5, count: 2, spread: 0.06 } : null,
+      }
+    }
+    case 'sugarcane': {
+      const h = 0.8 * scale
+      return {
+        stem: { geo: new THREE.CylinderGeometry(0.02, 0.03, h, 5), color: leafBrighter, offsetY: h / 2 },
+        foliage: { geo: new THREE.ConeGeometry(0.04, 0.1 * scale, 4), color: leafBrighter, offsetY: h },
+        fruit: null,
+      }
+    }
+    case 'fruits': {
+      const h = 1.5 * scale
+      return {
+        stem: { geo: new THREE.CylinderGeometry(0.05, 0.09, h * 0.5, 6), color: stemColor, offsetY: h * 0.25 },
+        foliage: { geo: new THREE.IcosahedronGeometry(0.5 * scale, 1), color: leafBrighter, offsetY: h * 0.6, extraInstances: 2 },
+        fruit: hasFruit ? { geo: new THREE.SphereGeometry(0.05 * scale, 6, 6), color: fruitColor, offsetY: h * 0.65, count: 4, spread: 0.3 * scale } : null,
+      }
+    }
+    default: {
+      const h = 0.35 * scale
+      return {
+        stem: null,
+        foliage: { geo: new THREE.IcosahedronGeometry(0.13 * scale, 0), color: leafBrighter, offsetY: h * 0.5, extraInstances: 3 },
+        fruit: hasFruit ? { geo: new THREE.SphereGeometry(0.025 * scale, 5, 5), color: fruitColor, offsetY: h * 0.5, count: 2, spread: 0.08 } : null,
+      }
+    }
+  }
 }
 
-function WheatPlant({ scale, health, stage }: { scale: number; health: number; stage: GrowthStage }) {
-  const baseColor = new THREE.Color('#A8B84A')
-  const stemColor = new THREE.Color('#8B7D3B')
-  const grainColor = new THREE.Color('#D4B860')
-  const leafColor = getHealthColor(health, baseColor)
-
-  const height = 0.55 * scale
-  return (
-    <group>
-      {[0, 1, 2].map((i) => (
-        <group key={i} rotation={[0.08, (i / 3) * Math.PI * 2, 0.08]}>
-          <mesh position={[0, height / 2, 0]}>
-            <cylinderGeometry args={[0.01, 0.02, height, 4]} />
-            <meshStandardMaterial color={stemColor} roughness={0.85} />
-          </mesh>
-          <mesh position={[0.06, height * 0.45, 0]} rotation={[0, 0, 0.8]}>
-            <planeGeometry args={[0.15, 0.02]} />
-            <meshStandardMaterial color={leafColor} roughness={0.8} side={THREE.DoubleSide} />
-          </mesh>
-          {(stage === 'fruiting' || stage === 'harvest') && (
-            <group position={[0, height + 0.02, 0]}>
-              {Array.from({ length: 12 }).map((_, j) => (
-                <mesh key={j} position={[0, -j * 0.015, 0]} rotation={[0, 0, (j % 2 ? 1 : -1) * 0.5]}>
-                  <planeGeometry args={[0.04, 0.02]} />
-                  <meshStandardMaterial color={grainColor} roughness={0.5} side={THREE.DoubleSide} />
-                </mesh>
-              ))}
-            </group>
-          )}
-          {stage === 'flowering' && (
-            <mesh position={[0, height + 0.02, 0]}>
-              <coneGeometry args={[0.02, 0.06, 4]} />
-              <meshStandardMaterial color="#F0E68C" roughness={0.6} />
-            </mesh>
-          )}
-        </group>
-      ))}
-    </group>
-  )
+interface PlantPos {
+  x: number; z: number; rotY: number; scaleJitter: number
 }
 
-function CornPlant({ scale, health, stage }: { scale: number; health: number; stage: GrowthStage }) {
-  const baseColor = new THREE.Color('#4CAF50')
-  const stemColor = new THREE.Color('#33691E')
-  const earColor = new THREE.Color('#FFD54F')
-  const silkColor = new THREE.Color('#BF360C')
-  const leafColor = getHealthColor(health, baseColor)
-
-  const height = 0.7 * scale
-  return (
-    <group>
-      <mesh position={[0, height / 2, 0]}>
-        <cylinderGeometry args={[0.02, 0.04, height, 6]} />
-        <meshStandardMaterial color={stemColor} roughness={0.8} />
-      </mesh>
-      {[0, 1, 2, 3, 4, 5].map((i) => {
-        const angle = (i / 6) * Math.PI * 2
-        const yOffset = height * (0.3 + (i % 3) * 0.2)
-        return (
-          <group key={i} position={[0, yOffset, 0]} rotation={[0.4, angle, 0]}>
-            <mesh position={[0.15, 0, 0]} rotation={[0, 0, -0.3]}>
-              <planeGeometry args={[0.35, 0.08]} />
-              <meshStandardMaterial color={leafColor} roughness={0.75} side={THREE.DoubleSide} />
-            </mesh>
-          </group>
-        )
-      })}
-      {(stage === 'fruiting' || stage === 'harvest') && (
-        <group position={[0.06, height * 0.5, 0]}>
-          <mesh>
-            <cylinderGeometry args={[0.04, 0.05, 0.18, 8]} />
-            <meshStandardMaterial color={earColor} roughness={0.5} />
-          </mesh>
-          <mesh position={[0, 0.12, 0]}>
-            <coneGeometry args={[0.015, 0.06, 4]} />
-            <meshStandardMaterial color={silkColor} roughness={0.7} />
-          </mesh>
-        </group>
-      )}
-    </group>
-  )
+interface Transform {
+  x: number; y: number; z: number; rotY: number; scale: number
 }
 
-function TomatoPlant({ scale, health, stage }: { scale: number; health: number; stage: GrowthStage }) {
-  const baseColor = new THREE.Color('#2E7D32')
-  const stemColor = new THREE.Color('#1B5E20')
-  const fruitColor = stage === 'harvest' ? new THREE.Color('#E53935') : new THREE.Color('#FF8F00')
-  const leafColor = getHealthColor(health, baseColor)
+function PlantField({ geo, color, transforms, roughness = 0.8 }: {
+  geo: THREE.BufferGeometry
+  color: string
+  transforms: Transform[]
+  roughness?: number
+}) {
+  const ref = useRef<THREE.InstancedMesh>(null)
+  const mat = useMemo(() => new THREE.MeshStandardMaterial({ color, roughness }), [color, roughness])
 
-  const height = 0.4 * scale
-  return (
-    <group>
-      <mesh position={[0, height / 2, 0]}>
-        <cylinderGeometry args={[0.015, 0.025, height, 5]} />
-        <meshStandardMaterial color={stemColor} roughness={0.8} />
-      </mesh>
-      {[0, 1, 2, 3].map((i) => {
-        const angle = (i / 4) * Math.PI * 2 + 0.3
-        const y = height * (0.4 + (i % 2) * 0.3)
-        return (
-          <group key={i} position={[Math.cos(angle) * 0.08, y, Math.sin(angle) * 0.08]} rotation={[0.3, angle, 0.2]}>
-            <mesh>
-              <sphereGeometry args={[0.08, 6, 5]} />
-              <meshStandardMaterial color={leafColor} roughness={0.8} flatShading />
-            </mesh>
-          </group>
-        )
-      })}
-      {(stage === 'fruiting' || stage === 'harvest') && (
-        <>
-          <mesh position={[0.1, height * 0.5, 0.05]}>
-            <sphereGeometry args={[0.05, 8, 8]} />
-            <meshStandardMaterial color={fruitColor} roughness={0.3} metalness={0.05} />
-          </mesh>
-          <mesh position={[-0.08, height * 0.65, -0.06]}>
-            <sphereGeometry args={[0.045, 8, 8]} />
-            <meshStandardMaterial color={fruitColor} roughness={0.3} metalness={0.05} />
-          </mesh>
-          <mesh position={[0.05, height * 0.35, -0.1]}>
-            <sphereGeometry args={[0.04, 8, 8]} />
-            <meshStandardMaterial color={fruitColor} roughness={0.3} metalness={0.05} />
-          </mesh>
-        </>
-      )}
-      {stage === 'flowering' && (
-        <mesh position={[0, height * 0.8, 0]}>
-          <sphereGeometry args={[0.03, 6, 6]} />
-          <meshStandardMaterial color="#FFD54F" emissive="#FFD54F" emissiveIntensity={0.2} />
-        </mesh>
-      )}
-    </group>
-  )
+  useEffect(() => {
+    const m = ref.current
+    if (!m) return
+    const d = new THREE.Object3D()
+    transforms.forEach((t, i) => {
+      d.position.set(t.x, t.y, t.z)
+      d.rotation.set(0, t.rotY, 0)
+      d.scale.setScalar(t.scale)
+      d.updateMatrix()
+      m.setMatrixAt(i, d.matrix)
+    })
+    m.instanceMatrix.needsUpdate = true
+  }, [transforms])
+
+  return <instancedMesh ref={ref} args={[geo, mat, transforms.length]} />
 }
 
-function SugarcanePlant({ scale, health, stage }: { scale: number; health: number; stage: GrowthStage }) {
-  const stemColor = new THREE.Color('#558B2F')
-  const leafColor = getHealthColor(health, new THREE.Color('#7CB342'))
-  const height = 0.8 * scale
-  return (
-    <group>
-      {[0, 1, 2].map((i) => {
-        const angle = (i / 3) * Math.PI * 2
-        const r = 0.04
-        return (
-          <group key={i} position={[Math.cos(angle) * r, 0, Math.sin(angle) * r]} rotation={[0.05, 0, 0.05]}>
-            <mesh position={[0, height / 2, 0]}>
-              <cylinderGeometry args={[0.025, 0.035, height, 6]} />
-              <meshStandardMaterial color={stemColor} roughness={0.7} />
-            </mesh>
-            {[0, 1, 2, 3].map((k) => (
-              <mesh key={k} position={[0.04, height * (0.3 + k * 0.18), 0]} rotation={[0, 0, 1.2]}>
-                <planeGeometry args={[0.25, 0.03]} />
-                <meshStandardMaterial color={leafColor} roughness={0.75} side={THREE.DoubleSide} />
-              </mesh>
-            ))}
-            <mesh position={[0, height, 0]}>
-              <coneGeometry args={[0.02, 0.1, 4]} />
-              <meshStandardMaterial color={leafColor} roughness={0.8} />
-            </mesh>
-          </group>
-        )
-      })}
-    </group>
-  )
-}
-
-function GenericBush({ scale, health, stage, fruitColor }: { scale: number; health: number; stage: GrowthStage; fruitColor: string }) {
-  const leafColor = getHealthColor(health, new THREE.Color('#388E3C'))
-  const height = 0.35 * scale
-  return (
-    <group>
-      {[0, 1, 2, 3, 4].map((i) => {
-        const angle = (i / 5) * Math.PI * 2
-        return (
-          <mesh key={i} position={[Math.cos(angle) * 0.06, height * 0.5, Math.sin(angle) * 0.06]}>
-            <sphereGeometry args={[0.1, 8, 7]} />
-            <meshStandardMaterial color={leafColor} roughness={0.85} flatShading />
-          </mesh>
-        )
-      })}
-      <mesh position={[0, height * 0.3, 0]}>
-        <sphereGeometry args={[0.12, 8, 7]} />
-        <meshStandardMaterial color={leafColor} roughness={0.85} flatShading />
-      </mesh>
-      {(stage === 'fruiting' || stage === 'harvest') && (
-        <>
-          <mesh position={[0.06, height * 0.4, 0.05]}>
-            <sphereGeometry args={[0.025, 6, 6]} />
-            <meshStandardMaterial color={fruitColor} roughness={0.3} />
-          </mesh>
-          <mesh position={[-0.05, height * 0.6, -0.04]}>
-            <sphereGeometry args={[0.025, 6, 6]} />
-            <meshStandardMaterial color={fruitColor} roughness={0.3} />
-          </mesh>
-        </>
-      )}
-    </group>
-  )
-}
-
-function TreePlant({ scale, health, stage, fruitColor }: { scale: number; health: number; stage: GrowthStage; fruitColor: string }) {
-  const trunkColor = new THREE.Color('#5D4037')
-  const leafColor = getHealthColor(health, new THREE.Color('#2E7D32'))
-  const fColor = new THREE.Color(fruitColor)
-  const height = 1.5 * scale
-
-  return (
-    <group>
-      <mesh position={[0, height * 0.25, 0]}>
-        <cylinderGeometry args={[0.05, 0.09, height * 0.5, 8]} />
-        <meshStandardMaterial color={trunkColor} roughness={0.9} />
-      </mesh>
-      <mesh position={[0, height * 0.55, 0]}>
-        <icosahedronGeometry args={[0.5 * scale, 1]} />
-        <meshStandardMaterial color={leafColor} roughness={0.8} flatShading />
-      </mesh>
-      <mesh position={[0.2, height * 0.7, 0.1]}>
-        <icosahedronGeometry args={[0.35 * scale, 1]} />
-        <meshStandardMaterial color={leafColor} roughness={0.8} flatShading />
-      </mesh>
-      <mesh position={[-0.15, height * 0.5, -0.15]}>
-        <icosahedronGeometry args={[0.3 * scale, 1]} />
-        <meshStandardMaterial color={leafColor} roughness={0.8} flatShading />
-      </mesh>
-      {(stage === 'fruiting' || stage === 'harvest') && (
-        Array.from({ length: 6 }).map((_, i) => {
-          const a = (i / 6) * Math.PI * 2
-          const r = 0.35 * scale
-          return (
-            <mesh key={i} position={[Math.cos(a) * r, height * (0.5 + Math.random() * 0.2), Math.sin(a) * r]}>
-              <sphereGeometry args={[0.05, 6, 6]} />
-              <meshStandardMaterial color={fColor} roughness={0.3} />
-            </mesh>
-          )
-        })
-      )}
-    </group>
-  )
-}
-
-function CropInstance({ crop, isSelected, showLabel }: { crop: CropPlot; isSelected: boolean; showLabel: boolean }) {
+function CropInstance({ crop, isSelected }: { crop: CropPlot; isSelected: boolean }) {
   const groupRef = useRef<THREE.Group>(null)
-  const cropData = CROP_TYPES[crop.cropType] || CROP_TYPES.rice
+  const cd = CROP_TYPES[crop.cropType] || CROP_TYPES.rice
   const scale = STAGE_SCALES[crop.stage]
+  const spacing = cd.spacing || 0.4
 
-  useFrame((state) => {
-    if (groupRef.current) {
-      const wind = Math.sin(state.clock.elapsedTime * 0.7 + crop.x * 0.4 + crop.z * 0.3) * 0.05
-      groupRef.current.rotation.z = wind
-      groupRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.5 + crop.z) * 0.02
-    }
-  })
-
-  const spacing = cropData.spacing || 0.4
-  const cols = Math.max(1, Math.floor(crop.width / spacing))
-  const rows = Math.max(1, Math.floor(crop.depth / spacing))
-  const positions = useMemo(() => {
-    const arr: { x: number; z: number }[] = []
-    for (let i = 0; i < cols; i++) {
-      for (let j = 0; j < rows; j++) {
+  const plantPositions = useMemo(() => {
+    const cols = Math.max(1, Math.floor(crop.width / spacing))
+    const rows = Math.max(1, Math.floor(crop.depth / spacing))
+    let total = cols * rows
+    const arr: PlantPos[] = []
+    if (total > MAX_PLANTS) {
+      const step = total / MAX_PLANTS
+      for (let i = 0; i < MAX_PLANTS; i++) {
+        const idx = Math.floor(i * step)
+        const col = Math.floor(idx / rows)
+        const row = idx % rows
         arr.push({
-          x: -crop.width / 2 + spacing / 2 + i * spacing + (Math.random() - 0.5) * 0.05,
-          z: -crop.depth / 2 + spacing / 2 + j * spacing + (Math.random() - 0.5) * 0.05,
+          x: -crop.width / 2 + spacing / 2 + col * spacing + (Math.random() - 0.5) * 0.05,
+          z: -crop.depth / 2 + spacing / 2 + row * spacing + (Math.random() - 0.5) * 0.05,
+          rotY: Math.random() * Math.PI * 2,
+          scaleJitter: 0.85 + Math.random() * 0.3,
+        })
+      }
+    } else {
+      for (let i = 0; i < total; i++) {
+        const col = Math.floor(i / rows)
+        const row = i % rows
+        arr.push({
+          x: -crop.width / 2 + spacing / 2 + col * spacing + (Math.random() - 0.5) * 0.05,
+          z: -crop.depth / 2 + spacing / 2 + row * spacing + (Math.random() - 0.5) * 0.05,
+          rotY: Math.random() * Math.PI * 2,
+          scaleJitter: 0.85 + Math.random() * 0.3,
         })
       }
     }
     return arr
-  }, [crop.width, crop.depth, spacing, cols, rows])
+  }, [crop.width, crop.depth, spacing])
 
-  const renderPlant = () => {
-    const props = { scale, health: crop.health, stage: crop.stage }
-    switch (crop.cropType) {
-      case 'rice': return <RicePlant {...props} />
-      case 'wheat': return <WheatPlant {...props} />
-      case 'corn': return <CornPlant {...props} />
-      case 'tomato': return <TomatoPlant {...props} />
-      case 'sugarcane': return <SugarcanePlant {...props} />
-      case 'fruits': return <TreePlant {...props} fruitColor={cropData.fruitColor || '#FF6B6B'} />
-      case 'chili': return <GenericBush {...props} fruitColor="#DC143C" />
-      case 'potato': return <GenericBush {...props} fruitColor="#DAA520" />
-      case 'groundnut': return <GenericBush {...props} fruitColor="#CD853F" />
-      case 'cotton': return <GenericBush {...props} fruitColor="#FFFAF0" />
-      default: return <GenericBush {...props} fruitColor={cropData.fruitColor || '#4CAF50'} />
+  useFrame((state) => {
+    if (groupRef.current) {
+      const wind = Math.sin(state.clock.elapsedTime * 0.5 + crop.x * 0.3 + crop.z * 0.2) * 0.012
+      groupRef.current.rotation.z = wind
+      groupRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.3 + crop.z) * 0.005
     }
-  }
+  })
+
+  const { stemTransforms, foliageTransforms, fruitTransforms, config } = useMemo(() => {
+    const cfg = getConfig(crop, scale)
+    const stem: Transform[] = []
+    const foliage: Transform[] = []
+    const fruit: Transform[] = []
+
+    for (const pos of plantPositions) {
+      if (cfg.stem) {
+        stem.push({
+          x: pos.x, y: cfg.stem.offsetY * pos.scaleJitter, z: pos.z,
+          rotY: pos.rotY, scale: pos.scaleJitter,
+        })
+      }
+      const extra = cfg.foliage.extraInstances || 0
+      foliage.push({
+        x: pos.x, y: cfg.foliage.offsetY * pos.scaleJitter, z: pos.z,
+        rotY: pos.rotY, scale: pos.scaleJitter,
+      })
+      for (let k = 0; k < extra; k++) {
+        foliage.push({
+          x: pos.x + (Math.random() - 0.5) * 0.12,
+          y: cfg.foliage.offsetY * pos.scaleJitter + (Math.random() - 0.5) * 0.05,
+          z: pos.z + (Math.random() - 0.5) * 0.12,
+          rotY: Math.random() * Math.PI * 2,
+          scale: pos.scaleJitter * 0.6,
+        })
+      }
+      if (cfg.fruit) {
+        for (let k = 0; k < cfg.fruit.count; k++) {
+          const a = (k / cfg.fruit.count) * Math.PI * 2 + Math.random() * 0.3
+          const r = cfg.fruit.spread * (0.5 + Math.random() * 0.5)
+          fruit.push({
+            x: pos.x + Math.cos(a) * r,
+            y: cfg.fruit.offsetY * pos.scaleJitter + (Math.random() - 0.5) * 0.04,
+            z: pos.z + Math.sin(a) * r,
+            rotY: 0, scale: pos.scaleJitter * (0.8 + Math.random() * 0.4),
+          })
+        }
+      }
+    }
+
+    return { stemTransforms: stem, foliageTransforms: foliage, fruitTransforms: fruit, config: cfg }
+  }, [plantPositions, crop.cropType, crop.stage, crop.health, scale])
 
   return (
-    <group ref={groupRef} position={[crop.x, 0, crop.z]}>
-      {/* Soil bed */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]} receiveShadow>
-        <planeGeometry args={[crop.width + 0.15, crop.depth + 0.15]} />
-        <meshStandardMaterial color={crop.health > 60 ? '#4E342E' : '#6D4C41'} roughness={0.95} />
-      </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.04, 0]}>
-        <planeGeometry args={[crop.width, crop.depth]} />
-        <meshStandardMaterial color="#5D4037" roughness={1} />
-      </mesh>
-
-      {/* Selection ring */}
+    <group ref={groupRef} position={[0, 0, 0]}>
       {isSelected && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.08, 0]}>
-          <ringGeometry args={[Math.max(crop.width, crop.depth) / 2 + 0.1, Math.max(crop.width, crop.depth) / 2 + 0.3, 48]} />
-          <meshStandardMaterial color="#10B981" emissive="#10B981" emissiveIntensity={0.4} transparent opacity={0.5} />
+          <ringGeometry args={[Math.max(crop.width, crop.depth) / 2 + 0.2, Math.max(crop.width, crop.depth) / 2 + 0.4, 32]} />
+          <meshStandardMaterial color="#10B981" emissive="#10B981" emissiveIntensity={0.4} transparent opacity={0.4} />
         </mesh>
       )}
 
-      {/* Furrows */}
-      {Array.from({ length: Math.max(1, Math.floor(rows)) }).map((_, i) => (
-        <mesh key={i} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.05, -crop.depth / 2 + spacing / 2 + i * spacing]}>
-          <planeGeometry args={[crop.width, 0.03]} />
-          <meshStandardMaterial color="#3E2723" roughness={1} transparent opacity={0.4} />
-        </mesh>
-      ))}
+      {config.stem && <PlantField geo={config.stem.geo} color={config.stem.color} transforms={stemTransforms} roughness={0.85} />}
+      <PlantField geo={config.foliage.geo} color={config.foliage.color} transforms={foliageTransforms} />
+      {config.fruit && <PlantField geo={config.fruit.geo} color={config.fruit.color} transforms={fruitTransforms} roughness={0.5} />}
 
-      {/* Plants */}
-      {positions.map((pos, idx) => (
-        <group key={idx} position={[pos.x, 0.05, pos.z]}>
-          {renderPlant()}
-        </group>
-      ))}
-
-      {/* Water stress indicator */}
-      {crop.waterStress > 50 && (
+      {crop.waterStress > 80 && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.06, 0]}>
           <planeGeometry args={[crop.width * 0.3, crop.depth * 0.3]} />
-          <meshBasicMaterial color="#8B4513" transparent opacity={0.12} />
+          <meshBasicMaterial color="#5DBF5D" transparent opacity={0.05} />
         </mesh>
       )}
     </group>

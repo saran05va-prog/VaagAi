@@ -81,6 +81,10 @@ export default {
       ? `https://vaagaiai.netlify.app/auth/callback`
       : `http://localhost:5174/api/auth/google/callback`,
   },
+  resend: {
+    apiKey: process.env.RESEND_API_KEY || '',
+    fromEmail: process.env.RESEND_FROM_EMAIL || 'noreply@vaagai.com',
+  },
   frontendUrl: process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production'
     ? 'https://vaagaiai.netlify.app'
     : 'http://localhost:5174'),

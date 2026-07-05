@@ -10,6 +10,12 @@ export default function FarmPage() {
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    const t = setTimeout(() => setLoaded(true), 500)
+    return () => clearTimeout(t)
+  }, [])
 
   useEffect(() => {
     setSidebarOpen(false)
@@ -28,6 +34,14 @@ export default function FarmPage() {
 
       <div className="relative flex-1 min-w-0">
         <div className="absolute inset-0">
+          {!loaded && (
+            <div className="absolute inset-0 flex items-center justify-center z-30" style={{ background: '#0a0a15' }}>
+              <div className="text-center">
+                <div className="w-12 h-12 rounded-full mx-auto mb-4 animate-spin" style={{ border: '3px solid rgba(76,175,80,0.2)', borderTopColor: '#4CAF50' }} />
+                <p style={{ color: '#888', fontSize: '13px' }}>Loading your farm...</p>
+              </div>
+            </div>
+          )}
           <FarmScene />
         </div>
 

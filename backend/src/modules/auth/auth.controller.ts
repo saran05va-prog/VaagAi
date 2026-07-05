@@ -5,6 +5,8 @@ import prisma from '../../services/database'
 import { authenticate, generateToken, AuthRequest } from './auth.middleware'
 import authService from './auth.service'
 import config from '../../config'
+import { sendWelcomeEmail } from '../../services/email'
+import { authRateLimiter } from '../../middleware/rate-limit'
 
 const router = Router()
 
@@ -14,6 +16,9 @@ const registerSchema = z.object({
   firstName: z.string().min(1),
   lastName: z.string().optional(),
   phone: z.string().optional(),
+  farmName: z.string().optional(),
+  farmLocation: z.string().optional(),
+  farmArea: z.number().optional(),
 })
 
 const loginSchema = z.object({
@@ -30,8 +35,13 @@ router.post('/register', async (req, res: Response): Promise<void> => {
       data.email,
       data.password,
       data.firstName,
-      data.lastName
+      data.lastName,
+      data.farmName,
+      data.farmLocation,
+      data.farmArea
     )
+
+    sendWelcomeEmail(data.email, data.firstName)
 
     res.status(201).json({
       user,
@@ -51,8 +61,43 @@ router.post('/register', async (req, res: Response): Promise<void> => {
   }
 })
 
+// Signup alias (frontend calls /signup)
+router.post('/signup', async (req, res: Response): Promise<void> => {
+  try {
+    const data = registerSchema.parse(req.body)
+
+    const { user, tokens } = await authService.register(
+      data.email,
+      data.password,
+      data.firstName,
+      data.lastName,
+      data.farmName,
+      data.farmLocation,
+      data.farmArea
+    )
+
+    sendWelcomeEmail(data.email, data.firstName)
+
+    res.status(201).json({
+      user,
+      token: tokens.accessToken,
+    })
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({ error: error.errors })
+      return
+    }
+    if (error instanceof Error && error.message === 'User already exists') {
+      res.status(409).json({ error: error.message })
+      return
+    }
+    console.error('Signup error:', error)
+    res.status(500).json({ error: 'Failed to sign up' })
+  }
+})
+
 // Login
-router.post('/login', async (req, res: Response): Promise<void> => {
+router.post('/login', authRateLimiter, async (req, res: Response): Promise<void> => {
   try {
     const data = loginSchema.parse(req.body)
 
@@ -102,12 +147,15 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response): Promise
 // Update profile
 router.put('/profile', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { firstName, lastName, phone } = req.body
+    const { firstName, lastName, phone, farmName, farmLocation, farmArea } = req.body
 
     const user = await prisma.user.update({
       where: { id: req.user!.userId },
-      data: { firstName, lastName, phone },
-      select: { id: true, email: true, firstName: true, lastName: true, role: true, phone: true },
+      data: { firstName, lastName, phone, farmName, farmLocation, farmArea },
+      select: {
+        id: true, email: true, firstName: true, lastName: true,
+        role: true, phone: true, farmName: true, farmLocation: true, farmArea: true,
+      },
     })
 
     res.json({ user })

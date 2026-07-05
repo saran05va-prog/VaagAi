@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
-  Sprout, BarChart3,
-  Settings, TrendingUp, Calendar,
+  Sprout, BarChart3, Settings,
+  TrendingUp, Calendar,
   ChevronRight, X,
-  Cloud, Bell, Tractor, Layers3,
+  Cloud, Bell, Tractor, Layers3, Bot, Bug, ScrollText,
 } from 'lucide-react'
 
 const NAV_SECTIONS = [
@@ -17,12 +17,19 @@ const NAV_SECTIONS = [
     ],
   },
   {
+    label: 'AI Tools',
+    items: [
+      { to: '/copilot', label: 'VaagAi Assistant', icon: Bot },
+      { to: '/crop-doctor', label: 'Crop Doctor', icon: Bug },
+      { to: '/disease-history', label: 'Disease History', icon: ScrollText },
+    ],
+  },
+  {
     label: 'Data',
     items: [
       { to: '/market', label: 'Market Prices', icon: TrendingUp },
       { to: '/weather', label: 'Weather', icon: Cloud },
       { to: '/calendar', label: 'Calendar', icon: Calendar },
-      
     ],
   },
   {
@@ -114,18 +121,26 @@ export default function Sidebar({ isOpen, onClose }) {
           style={{ height: 'var(--topbar-height)', borderBottom: '1px solid rgba(123, 207, 137, 0.14)' }}
         >
           <div
-            className="flex items-center justify-center rounded-2xl shadow-md"
+            className="flex items-center justify-center rounded-2xl shadow-md shrink-0"
             style={{
               width: 42, height: 42,
               background: 'linear-gradient(135deg, #7bf1a8 0%, #2e7d32 52%, #11361a 100%)',
               boxShadow: '0 6px 18px rgba(72, 201, 116, 0.28)',
             }}
           >
-            <Sprout size={22} strokeWidth={2.2} style={{ color: 'white' }} />
+            <svg width="26" height="26" viewBox="0 0 64 64" fill="none">
+              <path d="M32 50 L32 30" stroke="white" strokeWidth={3.5} strokeLinecap="round" />
+              <path d="M32 34 C24 34 18 28 18 20 C26 20 32 26 32 34 Z" fill="white" />
+              <path d="M32 30 C40 30 46 24 46 16 C38 16 32 22 32 30 Z" fill="white" />
+              <circle cx="32" cy="14" r="3" fill="#aaffcc" />
+              <circle cx="32" cy="14" r="1.5" fill="white" />
+              <circle cx="46" cy="10" r="1.8" fill="#aaffcc" opacity="0.7" />
+              <circle cx="18" cy="12" r="1.5" fill="#aaffcc" opacity="0.6" />
+            </svg>
           </div>
           <div className="flex-1 min-w-0">
             <p className="font-bold text-sm leading-none tracking-tight" style={{ color: '#effdf1', fontFamily: 'Sora, sans-serif' }}>
-              VaagAi
+              Vaag<span style={{ color: '#7bf1a8' }}>Ai</span>
             </p>
             <p className="text-xs mt-0.5" style={{ color: '#8dbf96' }}>
               Smart Farming

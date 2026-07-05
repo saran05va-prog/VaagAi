@@ -53,6 +53,12 @@ export const config = {
     ],
   },
 
+  // Resend (Email)
+  resend: {
+    apiKey: process.env.RESEND_API_KEY || '',
+    fromEmail: process.env.RESEND_FROM_EMAIL || 'noreply@vaagai.com',
+  },
+
   // Rate Limiting
   rateLimit: {
     windowMs: 15 * 60 * 1000, // 15 minutes

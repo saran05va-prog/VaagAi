@@ -10,6 +10,7 @@ import {
   Info, Map, Zap, Search,
 } from 'lucide-react'
 
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002'
 
 function getConditionFromCode(code?: number): string {
@@ -24,7 +25,11 @@ function getConditionFromCode(code?: number): string {
 }
 
 function useWeatherSync() {
-  const { setWeather, setWeatherLoading, setWeatherError, location, weatherSyncEnabled } = useFarmStore()
+  const setWeather = useFarmStore((s) => s.setWeather)
+  const setWeatherLoading = useFarmStore((s) => s.setWeatherLoading)
+  const setWeatherError = useFarmStore((s) => s.setWeatherError)
+  const location = useFarmStore((s) => s.location)
+  const weatherSyncEnabled = useFarmStore((s) => s.weatherSyncEnabled)
   const fetchWeather = useCallback(async () => {
     if (!weatherSyncEnabled) return
     setWeatherLoading(true)
@@ -61,7 +66,8 @@ function useWeatherSync() {
 }
 
 function useRealTimeClock() {
-  const { setCurrentTime, updateSoil } = useFarmStore()
+  const setCurrentTime = useFarmStore((s) => s.setCurrentTime)
+  const updateSoil = useFarmStore((s) => s.updateSoil)
   useEffect(() => {
     const tick = () => { const n = new Date(); setCurrentTime(n); updateSoil() }
     tick(); const id = setInterval(tick, 15000)
@@ -86,7 +92,11 @@ function StatChip({ icon: Icon, label, value, color }: { icon: any; label: strin
 }
 
 function WeatherWidget() {
-  const { weather, weatherLoading, setWeather, setWeatherLoading, location } = useFarmStore()
+  const weather = useFarmStore((s) => s.weather)
+  const weatherLoading = useFarmStore((s) => s.weatherLoading)
+  const setWeather = useFarmStore((s) => s.setWeather)
+  const setWeatherLoading = useFarmStore((s) => s.setWeatherLoading)
+  const location = useFarmStore((s) => s.location)
 
   const refresh = useCallback(async () => {
     setWeatherLoading(true)
@@ -168,7 +178,11 @@ function WeatherWidget() {
 }
 
 function FarmStatsWidget() {
-  const { crops, farmName, cultivatedArea, totalArea, soil } = useFarmStore()
+  const crops = useFarmStore((s) => s.crops)
+  const farmName = useFarmStore((s) => s.farmName)
+  const cultivatedArea = useFarmStore((s) => s.cultivatedArea)
+  const totalArea = useFarmStore((s) => s.totalArea)
+  const soil = useFarmStore((s) => s.soil)
   const count = crops.length
   const avgHealth = count ? Math.round(crops.reduce((s, c) => s + c.health, 0) / count) : 0
   const irr = crops.filter((c) => c.irrigationEnabled).length
@@ -203,7 +217,11 @@ function FarmStatsWidget() {
 }
 
 function CropEditorPanel() {
-  const { crops, selectedCrop, updateCrop, removeCrop, selectCrop } = useFarmStore()
+  const crops = useFarmStore((s) => s.crops)
+  const selectedCrop = useFarmStore((s) => s.selectedCrop)
+  const updateCrop = useFarmStore((s) => s.updateCrop)
+  const removeCrop = useFarmStore((s) => s.removeCrop)
+  const selectCrop = useFarmStore((s) => s.selectCrop)
   const [local, setLocal] = useState<Partial<CropPlot>>({})
   const plot = crops.find((c) => c.id === selectedCrop)
   useEffect(() => { setLocal({}) }, [selectedCrop])
@@ -301,7 +319,14 @@ function CropEditorPanel() {
 }
 
 function ToolSelector() {
-  const { editMode, setEditMode, selectedTool, setSelectedTool, showGrid, setShowGrid, showLabels, setShowLabels } = useFarmStore()
+  const editMode = useFarmStore((s) => s.editMode)
+  const setEditMode = useFarmStore((s) => s.setEditMode)
+  const selectedTool = useFarmStore((s) => s.selectedTool)
+  const setSelectedTool = useFarmStore((s) => s.setSelectedTool)
+  const showGrid = useFarmStore((s) => s.showGrid)
+  const setShowGrid = useFarmStore((s) => s.setShowGrid)
+  const showLabels = useFarmStore((s) => s.showLabels)
+  const setShowLabels = useFarmStore((s) => s.setShowLabels)
   const tools = [
     { id: 'select' as const, icon: MousePointer, label: 'Select' },
     { id: 'move' as const, icon: Move, label: 'Move' },
@@ -347,7 +372,7 @@ function ToolSelector() {
 }
 
 function SmartAlerts() {
-  const { crops } = useFarmStore()
+  const crops = useFarmStore((s) => s.crops)
   const alerts = useMemo(() => {
     const a: { type: 'critical' | 'warning'; msg: string; plot: string }[] = []
     crops.forEach((c) => {
@@ -381,9 +406,10 @@ function SmartAlerts() {
 }
 
 function QuickActions() {
-  const { crops, addCrop } = useFarmStore()
+  const crops = useFarmStore((s) => s.crops)
+  const addCrop = useFarmStore((s) => s.addCrop)
   const addQuick = () => {
-    const id = `plot_${Date.now()}`
+    const id = `plot_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
     const now = new Date(); const h = new Date(now); h.setDate(h.getDate() + 90)
     addCrop({
       id, name: `Plot ${crops.length + 1}`, cropType: 'rice',
@@ -426,7 +452,12 @@ export function Farm3DUIControls() {
   useWeatherSync()
   useRealTimeClock()
 
-  const { crops, selectedCrop, setCameraMode, cameraMode, dayPhase, isNight } = useFarmStore()
+  const crops = useFarmStore((s) => s.crops)
+  const selectedCrop = useFarmStore((s) => s.selectedCrop)
+  const setCameraMode = useFarmStore((s) => s.setCameraMode)
+  const cameraMode = useFarmStore((s) => s.cameraMode)
+  const dayPhase = useFarmStore((s) => s.dayPhase)
+  const isNight = useFarmStore((s) => s.isNight)
 
   return (
     <div className="absolute inset-0 pointer-events-none z-10">

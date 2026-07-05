@@ -1,15 +1,15 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ScrollText, Search, X, Download, Trash2, Eye, Share2,
   Grid3X3, List, Timeline, AlertCircle, CalendarDays,
   Bug, Sprout, TrendingUp, Activity, BarChart3, PieChart,
-  Loader2, ChevronRight, ArrowUp, FileText, Camera,
+  Loader2, ChevronRight, ArrowUp, FileText, Camera, CheckCircle2,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart as RePie, Pie, Cell, LineChart, Line } from 'recharts'
-import { useCropDoctorStore, type DiseaseReport, type Severity } from '../stores/cropDoctorStore'
-import { CROP_TYPES } from '../components/farm3d/farmStore'
+import { useCropDoctorStore, createTreatmentTasks, type DiseaseReport, type Severity } from '../stores/cropDoctorStore'
+import { useFarmStore, CROP_TYPES } from '../components/farm3d/farmStore'
 import SeverityGauge from '../components/crop-doctor/SeverityGauge'
 import FilterBar, { type FilterState } from '../components/crop-doctor/FilterBar'
 import { jsPDF } from 'jspdf'
@@ -142,7 +142,7 @@ function generatePDF(report: DiseaseReport) {
 export default function DiseaseHistory() {
   const { t } = useLanguage()
   const navigate = useNavigate()
-  const { reports, tasks, removeReport, getStats, toggleTaskStatus } = useCropDoctorStore()
+  const { reports, tasks, removeReport, updateReport, getStats, toggleTaskStatus } = useCropDoctorStore()
 
   const daysAgo = (iso: string): string => {
     const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
@@ -224,6 +224,45 @@ export default function DiseaseHistory() {
     return tasks.filter((t) => t.reportId === selectedReport.id).sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
   }, [selectedReport, tasks])
 
+  const { crops, updateCrop, addTask: addFarmTask } = useFarmStore()
+  const { addTask } = useCropDoctorStore()
+  const [actionToast, setActionToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+
+  const handleApplyTreatment = useCallback(() => {
+    if (!selectedReport) return
+    const plot = crops.find((c) => c.id === selectedReport.plotId)
+    if (!plot) {
+      setActionToast({ message: 'Plot not found. This report may not be linked to a plot.', type: 'error' })
+      return
+    }
+    updateCrop(selectedReport.plotId, {
+      health: Math.min(100, plot.health + 15),
+      diseaseDetected: selectedReport.diseaseName,
+      pestRisk: Math.max(0, plot.pestRisk - 20),
+    })
+    updateReport(selectedReport.id, { treatmentStatus: 'in-progress' })
+    setActionToast({ message: `Treatment applied to ${plot.name}. Plot health improved.`, type: 'success' })
+    setTimeout(() => setActionToast(null), 3500)
+  }, [selectedReport, crops, updateCrop, updateReport])
+
+  const handleScheduleTasks = useCallback(() => {
+    if (!selectedReport) return
+    const newTasks = createTreatmentTasks(selectedReport, selectedReport.plotId)
+    newTasks.forEach((t) => addTask(t))
+    selectedReport.treatmentSteps.forEach((step) => {
+      addFarmTask(selectedReport.plotId, {
+        id: `ft_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        type: step.day === 1 ? 'pesticide' : 'inspect',
+        description: `${step.title}: ${step.description}`,
+        date: new Date(Date.now() + step.day * 86400000).toISOString().split('T')[0],
+        completed: false,
+        priority: step.day <= 3 ? 'high' : 'medium',
+      })
+    })
+    setActionToast({ message: `${newTasks.length} treatment tasks added to calendar.`, type: 'success' })
+    setTimeout(() => setActionToast(null), 3500)
+  }, [selectedReport, addTask, addFarmTask])
+
   return (
     <div className="page-container max-w-7xl mx-auto">
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
@@ -242,7 +281,13 @@ export default function DiseaseHistory() {
 
       {reports.length === 0 ? (
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-          className="card p-12 text-center space-y-4">
+          className="relative overflow-hidden rounded-2xl p-12 text-center space-y-4"
+          style={{
+            background: 'linear-gradient(135deg, var(--color-surface), var(--color-surface-2))',
+            border: '1px solid var(--color-border)',
+          }}>
+          <div className="absolute top-0 right-0 w-64 h-64 rounded-full opacity-[0.03]"
+            style={{ background: 'var(--color-primary)', transform: 'translate(30%, -30%)' }} />
           <div className="w-20 h-20 rounded-3xl mx-auto flex items-center justify-center" style={{ background: 'var(--color-primary-light)' }}>
             <Bug size={40} style={{ color: 'var(--color-primary)' }} />
           </div>
@@ -250,30 +295,49 @@ export default function DiseaseHistory() {
           <p className="text-sm max-w-md mx-auto" style={{ color: 'var(--color-text-muted)' }}>
             {t('diseaseHistory.noDiagnosesDesc')}
           </p>
-          <button type="button" onClick={() => navigate('/crop-doctor')}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-white"
-            style={{ background: 'var(--color-primary)' }}>
+          <motion.button
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            type="button" onClick={() => navigate('/crop-doctor')}
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-white shadow-lg"
+            style={{
+              background: 'linear-gradient(135deg, #2d7a2d, #1a4d1a)',
+              boxShadow: '0 4px 16px rgba(45,122,45,0.3)',
+            }}>
             <Bug size={18} /> {t('diseaseHistory.openCropDoctor')}
-          </button>
+          </motion.button>
         </motion.div>
       ) : (
         <>
           {/* Stats Dashboard */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             {[
-              { icon: Bug, label: t('diseaseHistory.totalDiagnoses'), value: stats.total, color: '#2d7a2d' },
-              { icon: TrendingUp, label: t('diseaseHistory.thisMonth'), value: stats.thisMonth, color: '#2563eb' },
-              { icon: Activity, label: t('diseaseHistory.activeTreatments'), value: stats.activeTreatments, color: '#f59e0b' },
-              { icon: AlertCircle, label: t('diseaseHistory.commonDisease'), value: stats.mostCommonDisease, color: '#7c3aed', small: true },
+              { icon: Bug, label: t('diseaseHistory.totalDiagnoses'), value: stats.total, color: '#2d7a2d', gradient: 'linear-gradient(135deg, rgba(45,122,45,0.12), rgba(45,122,45,0.04))' },
+              { icon: TrendingUp, label: t('diseaseHistory.thisMonth'), value: stats.thisMonth, color: '#2563eb', gradient: 'linear-gradient(135deg, rgba(37,99,235,0.12), rgba(37,99,235,0.04))' },
+              { icon: Activity, label: t('diseaseHistory.activeTreatments'), value: stats.activeTreatments, color: '#f59e0b', gradient: 'linear-gradient(135deg, rgba(245,158,11,0.12), rgba(245,158,11,0.04))' },
+              { icon: AlertCircle, label: t('diseaseHistory.commonDisease'), value: stats.mostCommonDisease, color: '#7c3aed', gradient: 'linear-gradient(135deg, rgba(124,58,237,0.12), rgba(124,58,237,0.04))', small: true },
             ].map((stat, i) => (
-              <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-                className="card p-4">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <stat.icon size={14} style={{ color: stat.color }} />
-                  <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{stat.label}</span>
-                </div>
-                <div className={`font-bold ${stat.small ? 'text-sm truncate' : 'text-2xl'}`} style={{ fontFamily: 'Sora, sans-serif' }}>
-                  {stat.value}
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.08 }}
+                whileHover={{ y: -2, transition: { duration: 0.2 } }}
+                className="relative overflow-hidden rounded-xl p-4"
+                style={{ background: stat.gradient, border: '1px solid var(--color-border)' }}>
+                <div className="absolute top-0 right-0 w-24 h-24 rounded-full opacity-[0.06]"
+                  style={{ background: stat.color, transform: 'translate(30%, -30%)' }} />
+                <div className="relative">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+                      style={{ background: `${stat.color}18` }}>
+                      <stat.icon size={13} style={{ color: stat.color }} />
+                    </div>
+                    <span className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>{stat.label}</span>
+                  </div>
+                  <div className={`font-bold ${stat.small ? 'text-sm truncate' : 'text-2xl'}`} style={{ fontFamily: 'Sora, sans-serif', color: stat.color }}>
+                    {stat.value}
+                  </div>
                 </div>
               </motion.div>
             ))}
@@ -282,59 +346,68 @@ export default function DiseaseHistory() {
           {/* Analytics Charts */}
           {reports.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div className="card p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <PieChart size={14} style={{ color: 'var(--color-primary)' }} />
-                  <span className="text-xs font-semibold" style={{ color: 'var(--color-text-muted)' }}>{t('diseaseHistory.diseaseFrequency')}</span>
-                </div>
-                <ResponsiveContainer width="100%" height={150}>
-                  <RePie>
-                    <Pie data={diseaseFrequency} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} innerRadius={30}>
-                      {diseaseFrequency.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-                    </Pie>
-                    <Tooltip />
-                  </RePie>
-                </ResponsiveContainer>
-              </div>
-              <div className="card p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <BarChart3 size={14} style={{ color: 'var(--color-primary)' }} />
-                  <span className="text-xs font-semibold" style={{ color: 'var(--color-text-muted)' }}>{t('diseaseHistory.severityDistribution')}</span>
-                </div>
-                <ResponsiveContainer width="100%" height={150}>
-                  <BarChart data={severityDist}>
-                    <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                    <YAxis tick={{ fontSize: 10 }} />
-                    <Tooltip />
-                    <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                      {severityDist.map((entry) => (
-                        <Cell key={entry.name} fill={entry.name === 'Low' ? '#22c55e' : entry.name === 'Medium' ? '#f59e0b' : '#ef4444'} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="card p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <TrendingUp size={14} style={{ color: 'var(--color-primary)' }} />
-                  <span className="text-xs font-semibold" style={{ color: 'var(--color-text-muted)' }}>{t('diseaseHistory.diagnosesOverTime')}</span>
-                </div>
-                <ResponsiveContainer width="100%" height={150}>
-                  <LineChart data={timelineData}>
-                    <XAxis dataKey="month" tick={{ fontSize: 8 }} />
-                    <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="count" stroke="#2d7a2d" strokeWidth={2} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+              {[
+                { icon: PieChart, title: t('diseaseHistory.diseaseFrequency'), content: (
+                  <ResponsiveContainer width="100%" height={150}>
+                    <RePie>
+                      <Pie data={diseaseFrequency} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} innerRadius={30}>
+                        {diseaseFrequency.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                      </Pie>
+                      <Tooltip />
+                    </RePie>
+                  </ResponsiveContainer>
+                )},
+                { icon: BarChart3, title: t('diseaseHistory.severityDistribution'), content: (
+                  <ResponsiveContainer width="100%" height={150}>
+                    <BarChart data={severityDist}>
+                      <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                      <YAxis tick={{ fontSize: 10 }} />
+                      <Tooltip />
+                      <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                        {severityDist.map((entry) => (
+                          <Cell key={entry.name} fill={entry.name === 'Low' ? '#22c55e' : entry.name === 'Medium' ? '#f59e0b' : '#ef4444'} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )},
+                { icon: TrendingUp, title: t('diseaseHistory.diagnosesOverTime'), content: (
+                  <ResponsiveContainer width="100%" height={150}>
+                    <LineChart data={timelineData}>
+                      <XAxis dataKey="month" tick={{ fontSize: 8 }} />
+                      <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+                      <Tooltip />
+                      <Line type="monotone" dataKey="count" stroke="#2d7a2d" strokeWidth={2.5} dot={{ r: 3, fill: '#2d7a2d' }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )},
+              ].map((chart, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15 + i * 0.06 }}
+                  className="rounded-xl p-4"
+                  style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
+                  <div className="flex items-center gap-2 mb-3">
+                    <chart.icon size={14} style={{ color: 'var(--color-primary)' }} />
+                    <span className="text-xs font-semibold" style={{ color: 'var(--color-text-muted)' }}>{chart.title}</span>
+                  </div>
+                  {chart.content}
+                </motion.div>
+              ))}
             </div>
           )}
 
           {/* Filters */}
-          <div className="card p-4 mb-6">
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="rounded-xl p-4 mb-6"
+            style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}>
             <FilterBar filters={filters} onChange={setFilters} plotOptions={plotOptions} resultCount={filtered.length} />
-          </div>
+          </motion.div>
 
           {/* View Toggle */}
           <div className="flex items-center justify-between mb-4">
@@ -346,11 +419,15 @@ export default function DiseaseHistory() {
                 { id: 'grid', icon: Grid3X3 },
                 { id: 'list', icon: List },
               ] as const).map((v) => (
-                <button key={v.id} type="button" onClick={() => setViewMode(v.id)}
+                <motion.button
+                  key={v.id}
+                  type="button"
+                  onClick={() => setViewMode(v.id)}
+                  whileTap={{ scale: 0.9 }}
                   className="p-1.5 rounded-md transition-all"
                   style={{ background: viewMode === v.id ? 'var(--color-surface)' : 'transparent' }}>
                   <v.icon size={16} style={{ color: viewMode === v.id ? 'var(--color-primary)' : 'var(--color-text-muted)' }} />
-                </button>
+                </motion.button>
               ))}
             </div>
           </div>
@@ -359,88 +436,114 @@ export default function DiseaseHistory() {
           <div className={viewMode === 'grid'
             ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'
             : 'space-y-3'}>
-            <AnimatePresence>
+            <AnimatePresence mode="popLayout">
               {filtered.map((report, i) => (
                 <motion.div
                   key={report.id}
                   layout
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
+                  initial={{ opacity: 0, y: 10, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ delay: i * 0.03 }}
+                  transition={{ delay: i * 0.04, type: 'spring', stiffness: 300, damping: 25 }}
                 >
                   {viewMode === 'grid' ? (
-                    <div className="card p-0 overflow-hidden group relative">
+                    <motion.div
+                      whileHover={{ y: -3 }}
+                      className="relative overflow-hidden rounded-xl group cursor-pointer"
+                      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                      onClick={() => setSelectedReport(report)}
+                    >
+                      <div className="absolute top-0 inset-x-0 h-1"
+                        style={{ background: `linear-gradient(90deg, ${severityColors[report.severity]}, ${severityColors[report.severity]}88)` }} />
                       {report.photos[0] && (
-                        <div className="h-36 overflow-hidden bg-black/10">
-                          <img src={report.photos[0]} alt="" className="w-full h-full object-cover" />
+                        <div className="h-36 overflow-hidden bg-black/5">
+                          <img src={report.photos[0]} alt="" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                         </div>
                       )}
                       <div className="p-4 space-y-2">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <div className="font-semibold text-sm">{report.diseaseName}</div>
-                            <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="font-semibold text-sm truncate">{report.diseaseName}</div>
+                            <div className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
                               {report.plantName} · {report.plotName}
                             </div>
                           </div>
-                          <span className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 uppercase tracking-wider"
                             style={{
-                              background: `${severityColors[report.severity]}15`,
+                              background: `${severityColors[report.severity]}18`,
                               color: severityColors[report.severity],
                             }}>
                             {report.severity}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                          <CalendarDays size={11} />
-                          {formatDate(report.diagnosedAt)} · {daysAgo(report.diagnosedAt)}
-                        </div>
-                        <div className="flex items-center gap-1.5 pt-1">
-                          <span className={`w-2 h-2 rounded-full ${report.treatmentStatus === 'completed' ? 'bg-green-500' : report.treatmentStatus === 'in-progress' ? 'bg-amber-500' : 'bg-gray-400'}`} />
-                          <span className="text-[10px] font-medium capitalize" style={{ color: 'var(--color-text-muted)' }}>
-                            {report.treatmentStatus.replace('-', ' ')}
-                          </span>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                            <CalendarDays size={11} />
+                            {daysAgo(report.diagnosedAt)}
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className={`w-1.5 h-1.5 rounded-full ${report.treatmentStatus === 'completed' ? 'bg-green-500' : report.treatmentStatus === 'in-progress' ? 'bg-amber-500' : 'bg-gray-400'}`} />
+                            <span className="text-[10px] font-medium capitalize" style={{ color: 'var(--color-text-muted)' }}>
+                              {report.treatmentStatus.replace('-', ' ')}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors" />
-                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                        <button type="button" onClick={() => setSelectedReport(report)}
-                          className="p-1.5 rounded-lg bg-white/90 shadow-sm"><Eye size={13} /></button>
-                        <button type="button" onClick={() => generatePDF(report)}
-                          className="p-1.5 rounded-lg bg-white/90 shadow-sm"><Download size={13} /></button>
-                        <button type="button" onClick={() => setConfirmDelete(report.id)}
-                          className="p-1.5 rounded-lg bg-white/90 shadow-sm"><Trash2 size={13} style={{ color: '#ef4444' }} /></button>
+                      <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-200 flex gap-1.5">
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); generatePDF(report) }}
+                          className="p-2 rounded-lg shadow-md backdrop-blur-sm"
+                          style={{ background: 'rgba(255,255,255,0.95)', color: 'var(--color-text-muted)' }}>
+                          <Download size={13} />
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setConfirmDelete(report.id) }}
+                          className="p-2 rounded-lg shadow-md backdrop-blur-sm"
+                          style={{ background: 'rgba(255,255,255,0.95)', color: '#ef4444' }}>
+                          <Trash2 size={13} />
+                        </motion.button>
                       </div>
-                      <button type="button" onClick={() => setSelectedReport(report)}
-                        className="absolute inset-0" />
-                    </div>
+                    </motion.div>
                   ) : (
-                    <div className="card p-4 flex items-center gap-4 relative group">
+                    <motion.div
+                      whileHover={{ x: 3 }}
+                      className="flex items-center gap-4 p-4 rounded-xl cursor-pointer group"
+                      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+                      onClick={() => setSelectedReport(report)}
+                    >
+                      <div className="w-1 h-10 rounded-full flex-shrink-0"
+                        style={{ background: severityColors[report.severity] }} />
                       {report.photos[0] && (
-                        <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0">
+                        <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0">
                           <img src={report.photos[0]} alt="" className="w-full h-full object-cover" />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-sm truncate">{report.diseaseName}</span>
-                          <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0"
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 uppercase"
                             style={{ background: `${severityColors[report.severity]}15`, color: severityColors[report.severity] }}>
                             {report.severity}
                           </span>
-                          <span className={`w-1.5 h-1.5 rounded-full ${report.treatmentStatus === 'completed' ? 'bg-green-500' : report.treatmentStatus === 'in-progress' ? 'bg-amber-500' : 'bg-gray-400'}`} />
                         </div>
-                        <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                        <div className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
                           {report.plantName} · {report.plotName} · {daysAgo(report.diagnosedAt)}
                         </div>
                       </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button type="button" onClick={() => setSelectedReport(report)} className="p-1.5 rounded-lg hover:bg-[var(--color-surface-2)]"><Eye size={14} /></button>
-                        <button type="button" onClick={() => generatePDF(report)} className="p-1.5 rounded-lg hover:bg-[var(--color-surface-2)]"><Download size={14} /></button>
-                        <button type="button" onClick={() => setConfirmDelete(report.id)} className="p-1.5 rounded-lg hover:bg-[var(--color-surface-2)]"><Trash2 size={14} style={{ color: '#ef4444' }} /></button>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`w-2 h-2 rounded-full ${report.treatmentStatus === 'completed' ? 'bg-green-500' : report.treatmentStatus === 'in-progress' ? 'bg-amber-500' : 'bg-gray-400'}`} />
+                        <span className="text-[10px] font-medium capitalize hidden sm:inline" style={{ color: 'var(--color-text-muted)' }}>
+                          {report.treatmentStatus.replace('-', ' ')}
+                        </span>
                       </div>
-                    </div>
+                      <ChevronRight size={15} style={{ color: 'var(--color-text-muted)' }} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </motion.div>
                   )}
                 </motion.div>
               ))}
@@ -448,10 +551,13 @@ export default function DiseaseHistory() {
           </div>
 
           {filtered.length === 0 && (
-            <div className="text-center py-12">
-              <Search size={32} className="mx-auto mb-3" style={{ color: 'var(--color-text-muted)' }} />
-              <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>{t('diseaseHistory.noFilterMatch')}</p>
-            </div>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-16">
+              <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ background: 'var(--color-surface-2)' }}>
+                <Search size={28} style={{ color: 'var(--color-text-muted)' }} />
+              </div>
+              <p className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>{t('diseaseHistory.noFilterMatch')}</p>
+              <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>Try adjusting your search or filters</p>
+            </motion.div>
           )}
         </>
       )}
@@ -462,78 +568,150 @@ export default function DiseaseHistory() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-12 pb-6 overflow-y-auto"
             onClick={() => setSelectedReport(null)}>
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-md" />
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 28 }}
               className="relative w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden"
-              style={{ background: 'var(--color-surface)' }}
+              style={{
+                background: 'var(--color-surface)',
+                border: '1px solid var(--color-border)',
+                boxShadow: '0 24px 80px rgba(0,0,0,0.3)',
+              }}
               onClick={(e) => e.stopPropagation()}>
-              <div className="sticky top-0 z-10 flex items-center justify-between p-5 pb-3" style={{ background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)' }}>
+              {/* Header with gradient accent */}
+              <div className="absolute top-0 inset-x-0 h-1"
+                style={{ background: `linear-gradient(90deg, ${severityColors[selectedReport.severity]}, ${severityColors[selectedReport.severity]}44, transparent)` }} />
+              <div className="sticky top-0 z-10 flex items-center justify-between p-5 pb-3"
+                style={{ background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)' }}>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${severityColors[selectedReport.severity]}15` }}>
+                  <motion.div
+                    initial={{ rotate: -10 }}
+                    animate={{ rotate: 0 }}
+                    className="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style={{ background: `${severityColors[selectedReport.severity]}18` }}>
                     <Bug size={20} style={{ color: severityColors[selectedReport.severity] }} />
-                  </div>
+                  </motion.div>
                   <div>
                     <div className="font-bold text-sm">{selectedReport.diseaseName}</div>
                     <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{formatDate(selectedReport.diagnosedAt)}</div>
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => generatePDF(selectedReport)} className="p-2 rounded-lg hover:bg-[var(--color-surface-2)]"><Download size={16} /></button>
-                  <button type="button" onClick={() => setSelectedReport(null)} className="p-2 rounded-lg hover:bg-[var(--color-surface-2)]"><X size={16} /></button>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    type="button" onClick={() => generatePDF(selectedReport)}
+                    className="p-2 rounded-lg" style={{ background: 'var(--color-surface-2)' }}>
+                    <Download size={15} />
+                  </motion.button>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    type="button" onClick={() => setSelectedReport(null)}
+                    className="p-2 rounded-lg" style={{ background: 'var(--color-surface-2)' }}>
+                    <X size={15} />
+                  </motion.button>
                 </div>
               </div>
 
-              <div className="p-5 space-y-6 max-h-[80vh] overflow-y-auto">
-                <div className="flex flex-wrap gap-4">
+              <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+                {/* Status badges */}
+                <div className="flex flex-wrap gap-3">
                   <SeverityGauge severity={selectedReport.severity} confidence={selectedReport.confidence} size="sm" />
-                  <div className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg" style={{ background: 'var(--color-surface-2)' }}>
+                  <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg"
+                    style={{ background: 'var(--color-surface-2)' }}>
                     <Sprout size={14} style={{ color: 'var(--color-primary)' }} />
                     {selectedReport.plantName} · {selectedReport.plotName}
-                  </div>
-                  <div className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg" style={{ background: 'var(--color-surface-2)' }}>
+                  </motion.div>
+                  <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg"
+                    style={{ background: 'var(--color-surface-2)' }}>
                     <span className={`w-2 h-2 rounded-full ${selectedReport.treatmentStatus === 'completed' ? 'bg-green-500' : selectedReport.treatmentStatus === 'in-progress' ? 'bg-amber-500' : 'bg-gray-400'}`} />
-                    <span className="capitalize">{selectedReport.treatmentStatus.replace('-', ' ')}</span>
-                  </div>
+                    <span className="capitalize font-medium">{selectedReport.treatmentStatus.replace('-', ' ')}</span>
+                  </motion.div>
                 </div>
 
+                {/* Photos */}
                 {selectedReport.photos.length > 0 && (
-                  <div className="flex gap-2 overflow-x-auto">
+                  <div className="flex gap-3 overflow-x-auto pb-1">
                     {selectedReport.photos.map((p, i) => (
-                      <div key={i} className="w-40 h-28 rounded-xl overflow-hidden flex-shrink-0">
-                        <img src={p} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
-                      </div>
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: i * 0.1 }}
+                        className="w-44 h-28 rounded-xl overflow-hidden flex-shrink-0 ring-1 ring-black/5"
+                      >
+                        <img src={p} alt="" className="w-full h-full object-cover" />
+                      </motion.div>
                     ))}
                   </div>
                 )}
 
-                <div>
-                  <h3 className="font-semibold text-sm mb-2">{t('diseaseHistory.description')}</h3>
+                {/* Description */}
+                <div className="rounded-xl p-4" style={{ background: 'var(--color-surface-2)' }}>
+                  <h3 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                    <AlertCircle size={14} style={{ color: 'var(--color-primary)' }} />
+                    {t('diseaseHistory.description')}
+                  </h3>
                   <p className="text-sm leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>{selectedReport.description}</p>
                 </div>
 
+                {/* Causes */}
                 <div>
-                  <h3 className="font-semibold text-sm mb-2">{t('diseaseHistory.causes')}</h3>
-                  <ul className="space-y-1">
+                  <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                    {t('diseaseHistory.causes')}
+                  </h3>
+                  <div className="space-y-2">
                     {selectedReport.causes.map((c, i) => (
-                      <li key={i} className="text-sm flex items-start gap-2">
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.05 }}
+                        className="flex items-start gap-3 p-3 rounded-lg"
+                        style={{ background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.1)' }}>
                         <span className="w-1.5 h-1.5 rounded-full mt-1.5 bg-red-500 flex-shrink-0" />
-                        <span style={{ color: 'var(--color-text-secondary)' }}>{c}</span>
-                      </li>
+                        <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>{c}</span>
+                      </motion.div>
                     ))}
-                  </ul>
+                  </div>
                 </div>
 
+                {/* Treatment Tasks */}
                 <div>
-                  <h3 className="font-semibold text-sm mb-3">{t('diseaseHistory.treatmentTasks')}</h3>
+                  <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                    <CalendarDays size={14} style={{ color: 'var(--color-primary)' }} />
+                    {t('diseaseHistory.treatmentTasks')}
+                  </h3>
                   <div className="space-y-2">
                     {relatedTasks.length === 0 ? (
-                      <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>{t('diseaseHistory.noTasks')}</p>
+                      <p className="text-sm py-4 text-center" style={{ color: 'var(--color-text-muted)' }}>
+                        {t('diseaseHistory.noTasks')}
+                      </p>
                     ) : (
-                      relatedTasks.map((task) => (
-                        <div key={task.id}
+                      relatedTasks.map((task, i) => (
+                        <motion.div
+                          key={task.id}
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: i * 0.04 }}
                           className="flex items-center gap-3 p-3 rounded-lg"
-                          style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}>
-                          <button
+                          style={{
+                            background: task.status === 'completed' ? 'rgba(34,197,94,0.04)' : 'var(--color-surface-2)',
+                            border: `1px solid ${task.status === 'completed' ? 'rgba(34,197,94,0.15)' : 'var(--color-border)'}`,
+                          }}>
+                          <motion.button
+                            whileTap={{ scale: 0.85 }}
                             type="button"
                             onClick={() => toggleTaskStatus(task.id)}
                             className={`w-5 h-5 rounded-md flex items-center justify-center transition-all ${task.status === 'completed' ? 'text-white' : ''}`}
@@ -543,33 +721,96 @@ export default function DiseaseHistory() {
                             }}
                           >
                             {task.status === 'completed' && <CheckIcon size={12} />}
-                          </button>
+                          </motion.button>
                           <div className="flex-1 min-w-0">
-                            <div className={`text-sm ${task.status === 'completed' ? 'line-through' : ''}`} style={{ color: task.status === 'completed' ? 'var(--color-text-muted)' : 'var(--color-text)' }}>
+                            <div className={`text-sm ${task.status === 'completed' ? 'line-through' : ''}`}
+                              style={{ color: task.status === 'completed' ? 'var(--color-text-muted)' : 'var(--color-text)' }}>
                               {task.title}
                             </div>
-                            <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{task.dueDate} · {task.description}</div>
+                            <div className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
+                              {task.dueDate} · {task.description}
+                            </div>
                           </div>
-                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${task.priority === 'high' ? 'text-red-600 bg-red-50 dark:bg-red-950/30' : task.priority === 'medium' ? 'text-amber-600 bg-amber-50' : 'text-green-600 bg-green-50'}`}>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            task.priority === 'high' ? 'text-red-600 bg-red-50' :
+                            task.priority === 'medium' ? 'text-amber-600 bg-amber-50' :
+                            'text-green-600 bg-green-50'
+                          }`}>
                             {task.priority}
                           </span>
-                        </div>
+                        </motion.div>
                       ))
                     )}
                   </div>
                 </div>
 
+                {/* Prevention */}
                 <div>
-                  <h3 className="font-semibold text-sm mb-2">{t('diseaseHistory.prevention')}</h3>
-                  <ul className="space-y-1">
+                  <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                    <CheckCircle2 size={14} style={{ color: '#22c55e' }} />
+                    {t('diseaseHistory.prevention')}
+                  </h3>
+                  <div className="space-y-2">
                     {selectedReport.prevention.map((p, i) => (
-                      <li key={i} className="text-sm flex items-start gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full mt-1.5 bg-green-500 flex-shrink-0" />
-                        <span style={{ color: 'var(--color-text-secondary)' }}>{p}</span>
-                      </li>
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.04 }}
+                        className="flex items-start gap-3 p-3 rounded-lg"
+                        style={{ background: 'rgba(34,197,94,0.04)', border: '1px solid rgba(34,197,94,0.1)' }}>
+                        <CheckCircle2 size={14} className="mt-0.5 flex-shrink-0" style={{ color: '#22c55e' }} />
+                        <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>{p}</span>
+                      </motion.div>
                     ))}
-                  </ul>
+                  </div>
                 </div>
+
+                {/* Action buttons */}
+                {selectedReport.treatmentStatus !== 'completed' && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex flex-col sm:flex-row gap-3 pt-2"
+                    style={{ borderTop: '1px solid var(--color-border)' }}>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      type="button" onClick={handleApplyTreatment}
+                      className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white shadow-md"
+                      style={{
+                        background: 'linear-gradient(135deg, #2d7a2d, #1a4d1a)',
+                        boxShadow: '0 4px 12px rgba(45,122,45,0.3)',
+                      }}>
+                      <Sprout size={16} /> Apply Treatment to Plot
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      type="button" onClick={handleScheduleTasks}
+                      className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                      style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}>
+                      <CalendarDays size={16} /> Schedule Calendar Tasks
+                    </motion.button>
+                  </motion.div>
+                )}
+
+                {/* Toast */}
+                {actionToast && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="flex items-center gap-3 p-4 rounded-xl text-sm font-medium"
+                    style={{
+                      background: actionToast.type === 'success' ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
+                      border: `1px solid ${actionToast.type === 'success' ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`,
+                      color: actionToast.type === 'success' ? '#15803d' : '#dc2626',
+                    }}>
+                    {actionToast.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+                    {actionToast.message}
+                  </motion.div>
+                )}
               </div>
             </motion.div>
           </motion.div>
@@ -581,27 +822,40 @@ export default function DiseaseHistory() {
         {confirmDelete && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setConfirmDelete(null)}>
-            <div className="absolute inset-0 bg-black/40" />
-            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
-              className="relative w-full max-w-sm rounded-2xl p-6" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+              className="relative w-full max-w-sm rounded-2xl p-6 shadow-2xl"
+              style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
               onClick={(e) => e.stopPropagation()}>
-              <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/50 flex items-center justify-center mb-4 mx-auto">
-                <AlertCircle size={24} className="text-red-600" />
+              <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center mb-5 mx-auto"
+                style={{ background: 'rgba(239,68,68,0.1)' }}>
+                <AlertCircle size={28} style={{ color: '#ef4444' }} />
               </div>
-              <h3 className="text-lg font-bold text-center mb-2">{t('diseaseHistory.deleteTitle')}</h3>
+              <h3 className="text-lg font-bold text-center mb-2" style={{ fontFamily: 'Sora, sans-serif' }}>{t('diseaseHistory.deleteTitle')}</h3>
               <p className="text-sm text-center mb-6" style={{ color: 'var(--color-text-muted)' }}>
                 {t('diseaseHistory.deleteWarning')}
               </p>
               <div className="flex gap-3">
-                <button type="button" onClick={() => setConfirmDelete(null)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  type="button" onClick={() => setConfirmDelete(null)}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
                   style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}>
                   {t('diseaseHistory.cancel')}
-                </button>
-                <button type="button" onClick={() => { removeReport(confirmDelete); setConfirmDelete(null) }}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white"
-                  style={{ background: '#ef4444' }}>
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  type="button" onClick={() => { removeReport(confirmDelete); setConfirmDelete(null) }}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white shadow-md"
+                  style={{ background: 'linear-gradient(135deg, #ef4444, #dc2626)' }}>
                   {t('diseaseHistory.delete')}
-                </button>
+                </motion.button>
               </div>
             </motion.div>
           </motion.div>

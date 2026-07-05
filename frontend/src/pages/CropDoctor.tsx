@@ -25,6 +25,7 @@ import {
   allCropKeys,
   type DiseaseInfo,
 } from '../data/diseaseData'
+import { analyzeDiseaseWithPython } from '../services/diseaseApi'
 import PhotoCapture from '../components/crop-doctor/PhotoCapture'
 import PlotSelector from '../components/crop-doctor/PlotSelector'
 import SeverityGauge from '../components/crop-doctor/SeverityGauge'
@@ -90,13 +91,30 @@ export default function CropDoctor() {
     setStep('analyzing')
     setAnalysisProgress(0)
 
+    let result: DiseaseInfo | null = null
+
+    if (photos.length > 0) {
+      setAnalysisMsg('Contacting AI analysis service...')
+      setAnalysisProgress(10)
+      await new Promise((r) => setTimeout(r, 400))
+
+      const apiResult = await analyzeDiseaseWithPython(photos[0], plantName)
+
+      if (apiResult) {
+        result = apiResult
+      }
+    }
+
     for (const msg of stageMessages) {
       setAnalysisMsg(msg.label)
       setAnalysisProgress(msg.percent)
       await new Promise((r) => setTimeout(r, 600))
     }
 
-    const result = diagnoseDisease(plantName, selectedSymptoms)
+    if (!result) {
+      result = diagnoseDisease(plantName, selectedSymptoms)
+    }
+
     if (!result) {
       const fallback: DiseaseInfo = {
         id: 'unknown',
@@ -125,7 +143,7 @@ export default function CropDoctor() {
 
     setStep('results')
     setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth' }), 300)
-  }, [canAnalyze, plantName, selectedSymptoms])
+  }, [canAnalyze, plantName, selectedSymptoms, photos])
 
   const handleSaveReport = useCallback(() => {
     if (!diseaseResult) return

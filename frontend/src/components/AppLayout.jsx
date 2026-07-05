@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import Sidebar from './Sidebar'
 import TopBar from './TopBar'
+import VaagAiChat from './ChatWidget'
 
 export default function AppLayout({ children, title, subtitle, status = 'connected' }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -43,6 +44,7 @@ export default function AppLayout({ children, title, subtitle, status = 'connect
           {children}
         </main>
       </div>
+      <VaagAiChat />
     </div>
   )
 }

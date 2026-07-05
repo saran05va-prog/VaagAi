@@ -144,7 +144,7 @@ export default function PhotoCapture({
       )}
 
       <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-        {photos.length === 0 ? t('cropDoctor.photo.photoHint') : t('cropDoctor.photo.photoCounter', { n: photos.length })}
+        {photos.length === 0 ? t('cropDoctor.photo.photoHint') : `${photos.length} photo${photos.length > 1 ? 's' : ''} captured`}
       </p>
     </div>
   )

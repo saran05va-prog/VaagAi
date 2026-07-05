@@ -1,13 +1,40 @@
 import { useState, useRef, useEffect } from 'react'
-import { MessageCircle, X, Send, Bot, User, Loader2, Minus } from 'lucide-react'
+import { MessageCircle, X, Send, Bot, User, Loader2, Minus, Sparkles } from 'lucide-react'
 import { useLanguage } from '../contexts/LanguageContext'
+import { useAuth } from '../contexts/AuthContext'
+import { useAuthModal } from '../contexts/AuthModalContext'
 interface Message {
   role: 'user' | 'assistant'
   content: string
 }
 
-export default function ChatWidget() {
+const agriKeywords = ['crop', 'plant', 'farm', 'soil', 'seed', 'rice', 'wheat', 'corn', 'tomato',
+  'weather', 'rain', 'irrigation', 'water', 'fertilizer', 'nutrient', 'pest', 'disease',
+  'weed', 'harvest', 'yield', 'market', 'price', 'organic', 'pesticide', 'fungicide',
+  'prune', 'spray', 'grow', 'leaf', 'root', 'blight', 'rust', 'mildew', 'fungus',
+  'urea', 'compost', 'manure', 'drip', 'sprinkler', 'field', 'plot', 'acre',
+  'hectare', 'subsidy', 'scheme', 'loan', 'insurance', 'tractor', 'drone',
+  'sensor', 'greenhouse', 'mulch', 'seedling', 'transplant', 'tillage']
+
+function getAgriFallback(text: string): string {
+  const lower = text.toLowerCase()
+  if (!agriKeywords.some(kw => lower.includes(kw)) && !lower.match(/^(hello|hi|hey|thanks)/)) {
+    return "I'm VaagAi, your farming assistant. I only answer agricultural questions — crops, pests, soil, weather, irrigation, fertilizers, and market prices. Please ask something farm-related."
+  }
+  if (lower.includes('crop') || lower.includes('plant')) return 'For crop recommendations, I analyze soil type, climate, and market prices.'
+  if (lower.includes('weather') || lower.includes('rain')) return 'Check the Weather page for detailed forecasts in your area.'
+  if (lower.includes('price') || lower.includes('market')) return 'Visit the Market page to see current prices for your crops.'
+  if (lower.includes('water') || lower.includes('irrigation')) return 'Proper irrigation is crucial for crop yield. I can help optimize your schedule.'
+  if (lower.includes('fertilizer') || lower.includes('nutrient')) return 'Fertilizer needs depend on soil test results and crop type.'
+  if (lower.includes('pest') || lower.includes('disease')) return 'Use integrated pest management — remove affected parts, apply neem oil, and ensure airflow.'
+  if (lower.includes('hello') || lower.includes('hi')) return "Hello! I'm VaagAi, your farming assistant. How can I help you today?"
+  return "I'm VaagAi, your smart farming assistant. I can help with crops, pests, weather, market prices, and more."
+}
+
+export default function VaagAiChat() {
   const { t } = useLanguage()
+  const { isGuest } = useAuth()
+  const { openAuthModal } = useAuthModal()
   const [open, setOpen] = useState(false)
   const [minimized, setMinimized] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
@@ -21,6 +48,7 @@ export default function ChatWidget() {
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return
+    if (isGuest) { openAuthModal('signup', 'Sign up to ask questions to VaagAi'); return }
 
     const text = input
     setMessages(prev => [...prev, { role: 'user', content: text }])
@@ -28,26 +56,17 @@ export default function ChatWidget() {
     setLoading(true)
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002'
-      const res = await fetch(`${API_URL}/api/chat`, {
+      const res = await fetch(`${API_URL}/api/copilot/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: text,
-          history: messages.map(m => ({ role: m.role, content: m.content })),
-          device_id: 'guest',
-        })
+        body: JSON.stringify({ message: text })
       })
       if (!res.ok) throw new Error('Failed')
       const data = await res.json()
-      setMessages(prev => [...prev, { role: 'assistant', content: data.reply || data.response || t('chatWidget.noResponse') }])
-    } catch {
-      const lower = text.toLowerCase()
-      let reply = "I'm your smart farming assistant. I can help with crop planning, weather, market prices, irrigation, and more."
-      if (lower.includes('crop') || lower.includes('plant')) reply = 'For crop recommendations, I analyze soil type, climate, and market prices.'
-      if (lower.includes('weather') || lower.includes('rain')) reply = 'Check the Weather page for detailed forecasts in your area.'
-      if (lower.includes('price') || lower.includes('market')) reply = 'Visit the Market page to see current prices for your crops.'
-      if (lower.includes('hi') || lower.includes('hello')) reply = "Hello! I'm your VAAGAI farming assistant. How can I help you today?"
+      const reply = data.answer || data.response || t('chatWidget.noResponse')
       setMessages(prev => [...prev, { role: 'assistant', content: reply }])
+    } catch {
+      setMessages(prev => [...prev, { role: 'assistant', content: getAgriFallback(text) }])
     } finally {
       setLoading(false)
     }
@@ -57,10 +76,13 @@ export default function ChatWidget() {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-50 flex items-center justify-center w-14 h-14 rounded-full shadow-lg transition-transform hover:scale-110"
-        style={{ background: 'linear-gradient(135deg, #2d7a2d, #1a4d1a)' }}
+        className="fixed bottom-6 right-6 z-50 flex items-center justify-center w-14 h-14 rounded-full shadow-lg transition-transform hover:scale-110 hover:shadow-xl active:scale-95"
+        style={{
+          background: 'linear-gradient(135deg, #2d7a2d, #1a4d1a)',
+          boxShadow: '0 4px 20px rgba(45,122,45,0.4)',
+        }}
       >
-        <MessageCircle size={24} className="text-white" />
+        <Sparkles size={22} className="text-white" />
       </button>
     )
   }
@@ -86,8 +108,8 @@ export default function ChatWidget() {
           style={{ background: 'linear-gradient(135deg, #2d7a2d, #1a4d1a)' }}
         >
           <div className="flex items-center gap-2">
-            <Bot size={18} className="text-white" />
-            <span className="text-sm font-semibold text-white">{t('chatWidget.title')}</span>
+            <Sparkles size={16} className="text-white" />
+            <span className="text-sm font-semibold text-white">VaagAi Assistant</span>
           </div>
           <div className="flex items-center gap-1">
             <button onClick={() => setMinimized(!minimized)} className="p-1 hover:bg-white/10 rounded">

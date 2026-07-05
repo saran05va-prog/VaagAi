@@ -42,8 +42,8 @@ export default function PlotSelector({
           style={{ background: 'var(--color-surface)' }}
         >
           <option value="">{t('cropDoctor.plotSelector.placeholder')}</option>
-          {plotOptions.map((p) => (
-            <option key={p.id} value={p.id}>
+          {plotOptions.map((p, i) => (
+            <option key={`${p.id}-${i}`} value={p.id}>
               {p.icon} {p.name}
             </option>
           ))}

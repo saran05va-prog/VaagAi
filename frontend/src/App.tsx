@@ -29,11 +29,13 @@ import PlotDetails from './pages/PlotDetails'
 import Market from './pages/Market'
 import Weather from './pages/Weather'
 import Settings from './pages/Settings'
+
 import CropCalendar from './pages/CropCalendar'
 import FarmCalendar from './pages/FarmCalendar'
 import CropDoctor from './pages/CropDoctor'
 import DiseaseHistory from './pages/DiseaseHistory'
 import Assistant from './pages/Assistant'
+import Copilot from './pages/Copilot'
 import Economics from './pages/Economics'
 
 // Farm 3D Page
@@ -80,12 +82,14 @@ function App() {
           <Route path="/plot-details" element={<ProtectedRoute><ProtectedLayout title="Plot Details" subtitle="Detailed view of your 3D farm plots"><PlotDetails /></ProtectedLayout></ProtectedRoute>} />
           <Route path="/market" element={<ProtectedRoute><ProtectedLayout title="Market Prices" subtitle="Live crop price trends across markets"><Market /></ProtectedLayout></ProtectedRoute>} />
           <Route path="/weather" element={<ProtectedRoute><ProtectedLayout title="Weather" subtitle="Real-time weather forecasts"><Weather /></ProtectedLayout></ProtectedRoute>} />
-          <Route path="/settings" element={<ProtectedRoute><ProtectedLayout title="Settings" subtitle="Configure your SmartFarm AI environment"><Settings /></ProtectedLayout></ProtectedRoute>} />
+
           <Route path="/calendar" element={<ProtectedRoute><ProtectedLayout title="Crop Calendar" subtitle="Daily tasks and stage guidance"><FarmCalendar /></ProtectedLayout></ProtectedRoute>} />
           <Route path="/crop-doctor" element={<ProtectedRoute><ProtectedLayout title="Crop Doctor" subtitle="AI-powered plant disease detection"><CropDoctor /></ProtectedLayout></ProtectedRoute>} />
           <Route path="/disease-history" element={<ProtectedRoute><ProtectedLayout title="Disease History" subtitle="Track your past diagnoses"><DiseaseHistory /></ProtectedLayout></ProtectedRoute>} />
           <Route path="/assistant" element={<ProtectedRoute><ProtectedLayout title="VAAGAI Assistant" subtitle="AI-powered farming advisor"><Assistant /></ProtectedLayout></ProtectedRoute>} />
+          <Route path="/copilot" element={<ProtectedRoute><ProtectedLayout title="VaagAi Assistant" subtitle="Enterprise agricultural intelligence"><Copilot /></ProtectedLayout></ProtectedRoute>} />
           <Route path="/economics" element={<ProtectedRoute><ProtectedLayout title="Economics" subtitle="Calculate your crop profits and costs"><Economics /></ProtectedLayout></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><ProtectedLayout title="Settings"><Settings /></ProtectedLayout></ProtectedRoute>} />
           <Route path="/crop-dashboard" element={<Navigate to="/calendar" replace />} />
 
           {/* Fallback to landing */}

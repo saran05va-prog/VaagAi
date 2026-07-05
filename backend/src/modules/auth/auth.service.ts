@@ -29,6 +29,9 @@ interface StoredUser {
   isActive: boolean
   createdAt: Date
   lastLoginAt?: Date | null
+  farmName?: string | null
+  farmLocation?: string | null
+  farmArea?: number | null
 }
 
 interface StoredSession {
@@ -67,6 +70,9 @@ const publicUser = (user: StoredUser) => ({
   role: user.role,
   avatarUrl: user.avatarUrl,
   createdAt: user.createdAt,
+  farmName: user.farmName,
+  farmLocation: user.farmLocation,
+  farmArea: user.farmArea,
 })
 
 const storeFallbackUser = (user: StoredUser): StoredUser => {
@@ -251,7 +257,10 @@ class AuthService {
     email: string,
     password: string,
     firstName?: string,
-    lastName?: string
+    lastName?: string,
+    farmName?: string,
+    farmLocation?: string,
+    farmArea?: number
   ): Promise<{ user: any; tokens: TokenPair }> {
     const normalizedEmail = normalizeEmail(email)
 
@@ -280,6 +289,9 @@ class AuthService {
       isActive: true,
       createdAt: new Date(),
       lastLoginAt: new Date(),
+      farmName: farmName ?? null,
+      farmLocation: farmLocation ?? null,
+      farmArea: farmArea ?? null,
     })
 
     try {
@@ -292,6 +304,9 @@ class AuthService {
           role: 'OWNER',
           isActive: true,
           emailVerified: true,
+          farmName: farmName ?? null,
+          farmLocation: farmLocation ?? null,
+          farmArea: farmArea ?? null,
         },
       })
 
@@ -306,6 +321,9 @@ class AuthService {
         isActive: createdUser.isActive,
         createdAt: createdUser.createdAt,
         lastLoginAt: createdUser.lastLoginAt,
+        farmName: createdUser.farmName,
+        farmLocation: createdUser.farmLocation,
+        farmArea: createdUser.farmArea,
       })
     } catch (error) {
       if (!isDatabaseUnavailableError(error)) {
@@ -346,6 +364,9 @@ class AuthService {
           isActive: dbUser.isActive,
           createdAt: dbUser.createdAt,
           lastLoginAt: dbUser.lastLoginAt,
+          farmName: dbUser.farmName,
+          farmLocation: dbUser.farmLocation,
+          farmArea: dbUser.farmArea,
         })
       }
     } catch (error) {
@@ -406,6 +427,9 @@ class AuthService {
           role: true,
           avatarUrl: true,
           createdAt: true,
+          farmName: true,
+          farmLocation: true,
+          farmArea: true,
         },
       })
 
