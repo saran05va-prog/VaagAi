@@ -15,10 +15,10 @@ FROM base AS deps
 WORKDIR /app
 
 # Copy package files
-COPY package.json pnpm-lock.yaml ./
+COPY package.json ./
 
-# Install pnpm and dependencies
-RUN npm install -g pnpm && pnpm install --frozen-lockfile
+# Install dependencies
+RUN npm install
 
 # ========================================
 # BUILDER STAGE
@@ -29,7 +29,7 @@ WORKDIR /app
 
 # Copy node_modules from deps stage
 COPY --from=deps /app/node_modules ./node_modules
-COPY package.json pnpm-lock.yaml ./
+COPY package.json ./
 
 # Copy source
 COPY . .
@@ -38,7 +38,7 @@ COPY . .
 COPY .env.production ./.env.production
 
 # Build
-RUN pnpm build
+RUN npm run build
 
 # ========================================
 # PRODUCTION STAGE
