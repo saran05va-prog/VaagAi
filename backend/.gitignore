@@ -20,3 +20,6 @@ prisma/*.db-journal
 
 # Local
 .vaagai-auth-fallback.json
+
+# pnpm (project uses npm)
+pnpm-lock.yaml

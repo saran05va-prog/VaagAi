@@ -37,3 +37,6 @@ app_data/
 data/faiss_index/
 data/ml_models/
 backend/.vaagai-auth-fallback.json
+
+# pnpm lock files (project uses npm)
+pnpm-lock.yaml
