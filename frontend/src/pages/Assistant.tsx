@@ -113,7 +113,7 @@ export default function Assistant() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-10rem)] max-w-4xl mx-auto page-container" style={{ paddingBottom: 0 }}>
+    <div className="flex flex-col h-[calc(100dvh-10rem)] max-w-4xl mx-auto page-container" style={{ paddingBottom: 0 }}>
       <div className="pb-4 flex items-center justify-between" style={{ borderBottom: '1px solid var(--color-border)' }}>
         <div>
           <h1 className="page-title flex items-center gap-2">
@@ -127,8 +127,9 @@ export default function Assistant() {
         {messages.length > 0 && (
           <button
             onClick={clearHistory}
-            className="btn btn-ghost btn-sm"
+            className="btn btn-ghost"
             title={t('assistant.clearTitle')}
+            style={{ minHeight: '44px', minWidth: '44px' }}
           >
             <Trash2 size={14} />
             {t('assistant.clear')}
@@ -177,8 +178,8 @@ export default function Assistant() {
                   <button
                     key={i}
                     onClick={() => sendMessage(s)}
-                    className="btn btn-ghost btn-sm animate-fade-up flex items-center gap-1"
-                    style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', animationDelay: `${i * 100 + 360}ms` }}
+                    className="btn btn-ghost animate-fade-up flex items-center gap-1"
+                    style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', animationDelay: `${i * 100 + 360}ms`, minHeight: '44px' }}
                   >
                     <MessageSquare size={12} />
                     {s}
@@ -246,7 +247,7 @@ export default function Assistant() {
           <button
             type="submit"
             disabled={loading || !input.trim()}
-            className="btn btn-primary"
+            className="btn btn-primary min-h-[44px]"
             style={{ borderRadius: 'var(--radius-lg)', padding: '10px 20px' }}
           >
             {loading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}

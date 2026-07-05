@@ -106,7 +106,7 @@ export default function Economics() {
             </div>
           </div>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="label">{t('economics.cropType')}</label>
                 <select name="crop" value={form.crop} onChange={handleCropChange} className="input select capitalize">
@@ -119,7 +119,7 @@ export default function Economics() {
                 <input type="number" name="area_ha" value={form.area_ha} onChange={handleChange} min={0.1} step={0.1} className="input" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="label">{t('economics.fertilizerCost')}</label>
                 <input type="number" name="fertilizer_cost" value={form.fertilizer_cost} onChange={handleChange} className="input" />
@@ -129,7 +129,7 @@ export default function Economics() {
                 <input type="number" name="pesticide_cost" value={form.pesticide_cost} onChange={handleChange} className="input" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="label">{t('economics.laborCost')}</label>
                 <input type="number" name="labor_cost" value={form.labor_cost} onChange={handleChange} className="input" />
@@ -168,13 +168,13 @@ export default function Economics() {
           ) : result ? (
             <div className="space-y-5">
               {/* Summary cards */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="text-center p-3 rounded-xl" style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}>
-                  <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--color-text-muted)' }}>{t('economics.totalCost')}</p>
+                  <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--color-text-muted)' }}>{t('economics.totalCost')}</p>
                   <p className="font-bold" style={{ fontSize: '1rem', color: 'var(--color-text)' }}>₹{result.total_cost.toLocaleString()}</p>
                 </div>
                 <div className="text-center p-3 rounded-xl" style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}>
-                  <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--color-text-muted)' }}>{t('economics.revenue')}</p>
+                  <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: 'var(--color-text-muted)' }}>{t('economics.revenue')}</p>
                   <p className="font-bold" style={{ fontSize: '1rem', color: '#0ea5e9' }}>₹{result.total_revenue.toLocaleString()}</p>
                 </div>
                 <div
@@ -185,7 +185,7 @@ export default function Economics() {
                   }}
                 >
                   <p
-                    className="text-[10px] font-bold uppercase tracking-widest mb-1"
+                    className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest mb-1"
                     style={{ color: isProfitable ? '#15803d' : '#b91c1c' }}
                   >
                     {t('economics.profit')}
@@ -227,8 +227,8 @@ export default function Economics() {
               {/* Cost breakdown */}
               {costData.length > 0 && (
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--color-text-muted)' }}>{t('economics.costBreakdown')}</p>
-                  <div className="grid grid-cols-3 gap-3">
+                  <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--color-text-muted)' }}>{t('economics.costBreakdown')}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {costData.map((d, i) => (
                       <div key={d.name} className="rounded-xl p-3 text-center" style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}>
                         <span className="mx-auto mb-2 block w-3 h-3 rounded-full" style={{ background: ['#3b82f6', '#22c55e', '#f59e0b'][i] }} />
@@ -242,8 +242,8 @@ export default function Economics() {
 
               {/* Cost vs Revenue */}
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--color-text-muted)' }}>{t('economics.costVsRevenue')}</p>
-                <div className="grid grid-cols-2 gap-3">
+                <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--color-text-muted)' }}>{t('economics.costVsRevenue')}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="rounded-xl p-4" style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}>
                     <p className="text-xs font-medium mb-1" style={{ color: 'var(--color-text-muted)' }}>{t('economics.totalCost')}</p>
                     <p className="text-lg font-bold" style={{ color: 'var(--color-text)' }}>₹{result.total_cost.toLocaleString()}</p>

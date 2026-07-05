@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   Sprout, BarChart3, Settings,
@@ -41,28 +41,18 @@ const NAV_SECTIONS = [
 ]
 
 export default function Sidebar({ isOpen, onClose }) {
-  const [isMobile, setIsMobile] = useState(false)
   const location = useLocation()
-
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024)
-    }
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
-  }, [])
 
   // Close sidebar on navigation (mobile only)
   useEffect(() => {
-    if (isMobile && onClose) {
+    if (onClose) {
       onClose()
     }
-  }, [location.pathname, isMobile])
+  }, [location.pathname])
 
   // Prevent body scroll when mobile sidebar is open
   useEffect(() => {
-    if (isMobile && isOpen) {
+    if (isOpen) {
       document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = ''
@@ -70,50 +60,41 @@ export default function Sidebar({ isOpen, onClose }) {
     return () => {
       document.body.style.overflow = ''
     }
-  }, [isMobile, isOpen])
-
-  // Don't render on mobile unless open
-  if (isMobile && !isOpen) return null
+  }, [isOpen])
 
   return (
     <>
       {/* Mobile Overlay */}
-      {isMobile && isOpen && (
+      {isOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-30 lg:hidden"
           onClick={onClose}
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar: mobile = fixed drawer, desktop = inline */}
       <aside
-        className={`${isMobile
-          ? 'fixed top-0 left-0 z-40 h-screen w-[280px] transition-transform duration-300'
-          : 'relative z-20 h-screen w-[var(--sidebar-width)] flex-none'} flex flex-col`}
+        className={`flex flex-col flex-none ${
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        } fixed inset-y-0 left-0 z-40 w-[280px] transition-transform duration-300 lg:relative lg:z-20 lg:w-[var(--sidebar-width)] lg:translate-x-0`}
         style={{
-          width: isMobile ? '280px' : 'var(--sidebar-width)',
           background: 'linear-gradient(180deg, #0d1810 0%, #112015 48%, #162718 100%)',
-          borderRight: isMobile ? 'none' : '1px solid rgba(123, 207, 137, 0.18)',
+          borderRight: '1px solid rgba(123, 207, 137, 0.18)',
           boxShadow: 'inset -1px 0 0 rgba(120, 220, 140, 0.06), 0 16px 40px rgba(0, 0, 0, 0.24)',
-          transform: isMobile
-            ? (isOpen ? 'translateX(0)' : 'translateX(-100%)')
-            : 'translateX(0)',
         }}
       >
-        {/* Mobile Close Button */}
-        {isMobile && (
-          <div className="flex items-center justify-between px-4" style={{ height: 'var(--topbar-height)', borderBottom: '1px solid var(--color-border)' }}>
-            <div />
-            <button
-              onClick={onClose}
-              className="p-2 rounded-lg transition-colors"
-              style={{ background: 'rgba(255,255,255,0.04)' }}
-              aria-label="Close menu"
-            >
-              <X size={20} style={{ color: '#e5f5e6' }} />
-            </button>
-          </div>
-        )}
+        {/* Mobile Close Button (only visible on mobile when open) */}
+        <div className="lg:hidden flex items-center justify-between px-4" style={{ height: 'var(--topbar-height)', borderBottom: '1px solid var(--color-border)' }}>
+          <div />
+          <button
+            onClick={onClose}
+            className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg transition-colors"
+            style={{ background: 'rgba(255,255,255,0.04)' }}
+            aria-label="Close menu"
+          >
+            <X size={20} style={{ color: '#e5f5e6' }} />
+          </button>
+        </div>
 
         {/* Logo & Brand */}
         <div
@@ -182,7 +163,6 @@ export default function Sidebar({ isOpen, onClose }) {
                   >
                     {({ isActive }) => (
                       <>
-                        {/* Active indicator bar */}
                         {isActive && (
                           <span
                             className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-full"
@@ -193,8 +173,6 @@ export default function Sidebar({ isOpen, onClose }) {
                             }}
                           />
                         )}
-
-                        {/* Icon */}
                         <span
                           className="flex items-center justify-center rounded-lg transition-all duration-150"
                           style={{
@@ -210,10 +188,7 @@ export default function Sidebar({ isOpen, onClose }) {
                             style={isActive ? { color: '#8ff0ab' } : { color: '#97b79e' }}
                           />
                         </span>
-
                         <span className="flex-1">{label}</span>
-
-                        {/* Hover arrow */}
                         <ChevronRight
                           size={14}
                           className="opacity-0 group-hover:opacity-100 transition-opacity duration-150"

@@ -90,14 +90,15 @@ export default function VaagAiChat() {
   return (
     <div
       className={`fixed z-50 ${minimized ? 'bottom-6 right-6' : 'bottom-6 right-6'}`}
-      style={{ width: minimized ? 'auto' : '360px' }}
+      style={{ width: minimized ? 'auto' : 'min(360px, calc(100vw - 32px))' }}
     >
       <div
         className="rounded-2xl shadow-2xl border overflow-hidden"
         style={{
           background: 'var(--color-surface)',
           borderColor: 'var(--color-border)',
-          height: minimized ? 'auto' : '520px',
+          maxHeight: minimized ? 'auto' : 'min(520px, calc(100dvh - 120px))',
+          height: minimized ? 'auto' : '100%',
           display: 'flex',
           flexDirection: 'column',
         }}
@@ -134,7 +135,7 @@ export default function VaagAiChat() {
                       <button
                         key={i}
                         onClick={() => { setInput(q); setTimeout(() => sendMessage(), 100) }}
-                        className="px-2.5 py-1 text-xs rounded-full transition"
+                        className="px-3 py-2 text-xs rounded-full transition"
                         style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-secondary)' }}
                       >
                         {q}
@@ -196,10 +197,10 @@ export default function VaagAiChat() {
                 <button
                   type="submit"
                   disabled={loading || !input.trim()}
-                  className="p-2 rounded-xl disabled:opacity-50 transition"
+                  className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl disabled:opacity-50 transition"
                   style={{ background: 'var(--color-primary)', color: 'white' }}
                 >
-                  <Send size={14} />
+                  <Send size={16} />
                 </button>
               </form>
             </div>

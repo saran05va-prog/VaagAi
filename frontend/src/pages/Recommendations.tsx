@@ -135,7 +135,7 @@ export default function Recommendations() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
         <div className="card p-5" style={{ borderColor: 'var(--color-border)' }}>
           <div className="flex items-center gap-2 mb-2 text-sm text-muted-foreground">
             <Sprout size={16} /> Farm
@@ -159,7 +159,7 @@ export default function Recommendations() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="card p-6" style={{ borderColor: 'var(--color-border)' }}>
           <div className="flex items-center gap-2 mb-5">
             <TrendingUp size={18} className="text-emerald-500" />
