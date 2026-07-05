@@ -7,6 +7,7 @@ import authService from './auth.service'
 import config from '../../config'
 import { sendWelcomeEmail } from '../../services/email'
 import { authRateLimiter } from '../../middleware/rate-limit'
+import { recordFailedAttempt, resetAttempts, isLocked } from '../../services/loginAttemptLimiter'
 
 const router = Router()
 
@@ -100,13 +101,27 @@ router.post('/signup', async (req, res: Response): Promise<void> => {
 router.post('/login', authRateLimiter, async (req, res: Response): Promise<void> => {
   try {
     const data = loginSchema.parse(req.body)
+    const email = data.email
+
+    // Check if email is locked due to too many failed attempts
+    const lockStatus = await isLocked(email)
+    if (lockStatus.locked) {
+      const minutes = Math.ceil(lockStatus.remainingLockoutMs / 60000)
+      res.status(429).json({
+        error: `Too many failed attempts. Account locked for ${minutes} minute(s).`,
+      })
+      return
+    }
 
     const { user, tokens } = await authService.login(
-      data.email,
+      email,
       data.password,
       req.ip || undefined,
       req.headers['user-agent'] || undefined
     )
+
+    // Successful login — reset failed attempt counter
+    await resetAttempts(email)
 
     res.json({
       user,
@@ -118,7 +133,24 @@ router.post('/login', authRateLimiter, async (req, res: Response): Promise<void>
       return
     }
     if (error instanceof Error && error.message === 'Invalid credentials') {
-      res.status(401).json({ error: error.message })
+      // Record the failed attempt
+      const body = req.body as { email?: string } | undefined
+      if (body?.email) {
+        const result = await recordFailedAttempt(body.email)
+        if (result.locked) {
+          const minutes = Math.ceil(result.remainingLockoutMs / 60000)
+          res.status(429).json({
+            error: `Too many failed attempts. Account locked for ${minutes} minute(s).`,
+          })
+          return
+        }
+        res.status(401).json({
+          error: 'Invalid credentials',
+          remainingAttempts: Math.max(0, 5 - result.attempts),
+        })
+        return
+      }
+      res.status(401).json({ error: 'Invalid credentials' })
       return
     }
     console.error('Login error:', error)

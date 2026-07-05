@@ -16,24 +16,55 @@ import { Navigate, useSearchParams } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/useAuth'
+import api from '@/lib/api'
 
 export default function AuthCallback() {
   const [searchParams] = useSearchParams()
   const { session, loading } = useAuth()
   const [error, setError] = useState<string | null>(null)
+  const [handled, setHandled] = useState(false)
 
-  // Supabase appends ?error_description= or ?error= when the link is bad.
   useEffect(() => {
     const errorDescription = searchParams.get('error_description')
     const errorCode = searchParams.get('error')
     if (errorDescription || errorCode) {
       setError(errorDescription || errorCode || 'Authentication failed.')
       toast.error(errorDescription || errorCode || 'Authentication failed.')
+      return
     }
-  }, [searchParams])
+
+    // Handle Google OAuth callback from Express backend (?token=&user=)
+    const token = searchParams.get('token')
+    const userParam = searchParams.get('user')
+    if (token && userParam) {
+      try {
+        const userData = JSON.parse(decodeURIComponent(userParam))
+        localStorage.setItem('vaagai_token', token)
+        // Also set in axios default headers for subsequent API calls
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`
+        setHandled(true)
+        toast.success(`Welcome, ${userData.firstName || 'farmer'}!`)
+      } catch {
+        setError('Failed to process login. Please try again.')
+        toast.error('Authentication failed.')
+      }
+      return
+    }
+
+    // Fallback: check for token after Supabase session didn't load
+    const fallbackToken = localStorage.getItem('vaagai_token')
+    if (fallbackToken && !session && !loading) {
+      setHandled(true)
+    }
+  }, [searchParams, session, loading])
 
   if (error) {
     return <Navigate to="/login" replace />
+  }
+
+  if (handled || (!loading && session)) {
+    const next = searchParams.get('next') || '/farm'
+    return <Navigate to={next} replace />
   }
 
   if (loading) {
@@ -51,14 +82,6 @@ export default function AuthCallback() {
     )
   }
 
-  if (session) {
-    const next = searchParams.get('next') || '/farm'
-    return <Navigate to={next} replace />
-  }
-
-  // Session still hasn't appeared after INITIAL_SESSION fired. The hash
-  // may have been malformed (link clicked twice, token already used).
-  // Send the user back to login rather than leaving them on a spinner.
   return (
     <div
       className="min-h-screen flex items-center justify-center"
