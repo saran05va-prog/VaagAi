@@ -1,7 +1,7 @@
-import { useRef, useState, useMemo } from 'react'
-import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
+import { useRef, useState } from 'react'
+import { Canvas, type ThreeEvent } from '@react-three/fiber'
 import { OrbitControls, Sky, Html, Billboard } from '@react-three/drei'
-import { EffectComposer, Bloom, Vignette, SMAA, BrightnessContrast } from '@react-three/postprocessing'
+
 import * as THREE from 'three'
 import { useFarmStore, type CropPlot } from './farmStore'
 import { Terrain } from './Terrain'
@@ -163,7 +163,13 @@ export function FarmScene() {
         toneMapping: THREE.ACESFilmicToneMapping,
         toneMappingExposure: 1.1,
         antialias: true,
+        powerPreference: 'high-performance',
+        failIfMajorPerformanceCaveat: false,
       }}
+      onCreated={({ gl }) => {
+        gl.setClearColor(skyColor)
+      }}
+      onError={console.error}
       style={{ background: skyColor }}
     >
       <DynamicLighting />
@@ -224,18 +230,6 @@ export function FarmScene() {
 
       <DragHandler isDragging={isDragging} onMove={handleDragMove} onUp={stopDrag} />
       <CameraController />
-
-      <EffectComposer multisampling={0}>
-        <Bloom
-          intensity={isNight ? 0.8 : 0.3}
-          luminanceThreshold={isNight ? 0.2 : 0.6}
-          luminanceSmoothing={0.9}
-          mipmapBlur
-        />
-        <Vignette eskil={false} offset={0.2} darkness={0.5} />
-        <BrightnessContrast brightness={0} contrast={0.05} />
-        <SMAA />
-      </EffectComposer>
     </Canvas>
   )
 }
