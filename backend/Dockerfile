@@ -35,7 +35,7 @@ RUN npm ci
 COPY . .
 
 # Generate Prisma client
-RUN npx prisma generate
+RUN ./node_modules/.bin/prisma generate --schema=prisma/schema.prisma
 
 # Build — tsc may report pre-existing type errors; we still compile output
 # The runtime code works correctly despite type issues in marketData services
