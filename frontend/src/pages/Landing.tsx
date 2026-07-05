@@ -75,7 +75,7 @@ function SectionLabel({ children, icon }: { children: React.ReactNode; icon?: an
 }
 
 function SectionTitle({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <h2 className={`text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-[1.08] ${className}`} style={{ fontFamily: 'Geist, Sora, sans-serif' }}>{children}</h2>
+  return <h2 className={`text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-[1.08] ${className}`} style={{ fontFamily: "'Sora', sans-serif" }}>{children}</h2>
 }
 
 function SectionDesc({ children }: { children: React.ReactNode }) {
@@ -242,7 +242,7 @@ function NavBar() {
             <motion.div
               initial={{ opacity: 0, x: '100%' }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: '100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-              className="fixed top-0 right-0 bottom-0 z-50 w-[280px] max-w-[85vw] flex flex-col"
+              className="fixed top-0 right-0 bottom-0 z-50 w-[280px] max-w-[90vw] flex flex-col"
               style={{ background: 'var(--color-surface)', borderLeft: '1px solid var(--color-border)' }}
             >
               <div className="flex items-center justify-between px-4 h-16 shrink-0" style={{ borderBottom: '1px solid var(--color-border)' }}>
@@ -348,7 +348,7 @@ function HeroSection() {
   }
 
   return (
-    <section className="relative min-h-screen flex items-center overflow-hidden pt-16">
+    <section className="relative min-h-dvh flex items-center overflow-hidden pt-16">
       <HeroFarmBackground />
       <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-black/30 to-transparent z-[1]" />
       <div className="relative z-10 w-full">
@@ -363,7 +363,7 @@ function HeroSection() {
               </motion.div>
               <motion.h1
                 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[0.98]"
-                style={{ fontFamily: 'Geist, Sora, sans-serif', color: 'white', textShadow: '0 2px 20px rgba(0,0,0,0.3)' }}
+                style={{ fontFamily: "'Sora', sans-serif", color: 'white', textShadow: '0 2px 20px rgba(0,0,0,0.3)' }}
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.1 }}
@@ -409,7 +409,7 @@ function HeroSection() {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.4 }}
-              className="hidden lg:block"
+              className="hidden md:block"
             >
               <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.12)' }}>
                 <div className="flex items-center gap-2 mb-4">
@@ -503,7 +503,7 @@ function StatsBar() {
               animate={isInView ? { opacity: 1, y: 0 } : {}}
               transition={{ duration: 0.5, delay: i * 0.1 }}
             >
-              <div className="text-3xl md:text-4xl font-extrabold mb-1" style={{ fontFamily: 'Geist, Sora, sans-serif', color: 'var(--color-primary)' }}>
+              <div className="text-3xl md:text-4xl font-extrabold mb-1" style={{ fontFamily: "'Sora', sans-serif", color: 'var(--color-primary)' }}>
                 {isInView ? <AnimatedCounter target={s.value} suffix={s.label === 'Uptime' ? '%' : ''} /> : '0'}
                 {s.label !== 'Uptime' && <span>{s.label === 'Avg. Yield Increase' ? '%' : '+'}</span>}
               </div>
@@ -535,7 +535,7 @@ function FeatureCard({ icon: Icon, title, description, index, color, bg }: { ico
         <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-all duration-300" style={{ background: bg }}>
           <Icon size={20} color={color} />
         </div>
-        <h3 className="text-base font-bold mb-2" style={{ fontFamily: 'Geist, Sora, sans-serif', color: 'var(--color-text)' }}>{title}</h3>
+        <h3 className="text-base font-bold mb-2" style={{ fontFamily: "'Sora', sans-serif", color: 'var(--color-text)' }}>{title}</h3>
         <p className="text-sm leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>{description}</p>
       </div>
       <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ background: `linear-gradient(135deg, ${color}04, transparent 60%)` }} />
@@ -607,7 +607,7 @@ function HowItWorksSection() {
                   <step.icon size={28} style={{ color: 'var(--color-primary)' }} />
                 </div>
                 <span className="text-xs font-bold tracking-widest mb-2 block" style={{ color: 'var(--color-primary)' }}>{step.number}</span>
-                <h3 className="text-lg font-bold mb-3" style={{ fontFamily: 'Geist, Sora, sans-serif', color: 'var(--color-text)' }}>{step.title}</h3>
+                <h3 className="text-lg font-bold mb-3" style={{ fontFamily: "'Sora', sans-serif", color: 'var(--color-text)' }}>{step.title}</h3>
                 <p className="text-sm leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>{step.description}</p>
                 {i < steps.length - 1 && (
                   <div className="hidden md:block absolute -right-3 top-1/2 -translate-y-1/2 z-10">
@@ -678,7 +678,7 @@ function DemoSec() {
             </div>
             <div className="divide-y" style={{ borderColor: 'var(--color-border)' }}>
               {demoItems.map((item) => (
-                <div key={item.id} className="flex flex-col xs:flex-row xs:items-center justify-between p-3 sm:p-4 gap-2 hover:opacity-80 transition-colors">
+                <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 gap-2 hover:opacity-80 transition-colors">
                   <div className="flex items-center gap-3 sm:gap-4">
                     <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-sm font-bold shrink-0"
                       style={{
@@ -695,7 +695,7 @@ function DemoSec() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-0.5 self-end xs:self-auto">
+                  <div className="flex items-center gap-0.5 self-end sm:self-auto">
                     {[
                       { icon: Edit2, action: 'edit' },
                       { icon: Heart, action: 'like' },
@@ -835,11 +835,11 @@ function PricingSection() {
                 </div>
               )}
               <div className="mb-6">
-                <h3 className="text-lg font-bold mb-1" style={{ fontFamily: 'Geist, Sora, sans-serif', color: 'var(--color-text)' }}>{plan.name}</h3>
+                <h3 className="text-lg font-bold mb-1" style={{ fontFamily: "'Sora', sans-serif", color: 'var(--color-text)' }}>{plan.name}</h3>
                 <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{plan.description}</p>
               </div>
               <div className="mb-6">
-                <span className="text-3xl font-extrabold" style={{ fontFamily: 'Geist, Sora, sans-serif', color: 'var(--color-text)' }}>{plan.price}</span>
+                <span className="text-3xl font-extrabold" style={{ fontFamily: "'Sora', sans-serif", color: 'var(--color-text)' }}>{plan.price}</span>
                 {plan.period && <span className="text-sm" style={{ color: 'var(--color-text-muted)' }}> {plan.period}</span>}
               </div>
               <ul className="space-y-3 mb-8 flex-1">
@@ -966,7 +966,7 @@ function CTABanner() {
         transition={{ duration: 0.6 }}
         style={{ maxWidth: '42rem' }}
       >
-        <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4" style={{ fontFamily: 'Geist, Sora, sans-serif' }}>
+        <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4" style={{ fontFamily: "'Sora', sans-serif" }}>
           Ready to Transform Your Farm?
         </h2>
         <p className="text-white/70 mb-8 max-w-xl mx-auto text-sm sm:text-base">
@@ -1030,7 +1030,7 @@ function Footer() {
               <ul className="space-y-2.5">
                 {col.links.map((link) => (
                   <li key={link}>
-                    <a href="#" className="text-sm transition-colors min-h-[36px] flex items-center" style={{ color: 'rgba(255,255,255,0.4)' }}>{link}</a>
+                    <a href="#" className="text-sm transition-colors min-h-[44px] flex items-center" style={{ color: 'rgba(255,255,255,0.4)' }}>{link}</a>
                   </li>
                 ))}
               </ul>
@@ -1063,7 +1063,7 @@ export default function Landing() {
   }
 
   return (
-    <div style={{ overflowX: 'hidden' }}>
+    <div style={{ overflowX: 'hidden' }} className="pb-16">
       <NavBar />
       <HeroSection />
       <TrustedBySection />

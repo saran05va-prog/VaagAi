@@ -424,7 +424,7 @@ export default function DiseaseHistory() {
                   type="button"
                   onClick={() => setViewMode(v.id)}
                   whileTap={{ scale: 0.9 }}
-                  className="p-1.5 rounded-md transition-all"
+                  className="p-2.5 rounded-md transition-all"
                   style={{ background: viewMode === v.id ? 'var(--color-surface)' : 'transparent' }}>
                   <v.icon size={16} style={{ color: viewMode === v.id ? 'var(--color-primary)' : 'var(--color-text-muted)' }} />
                 </motion.button>
@@ -489,7 +489,7 @@ export default function DiseaseHistory() {
                           </div>
                         </div>
                       </div>
-                      <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-200 flex gap-1.5">
+                      <div className="absolute top-3 right-3 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 flex gap-1.5">
                         <motion.button
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.9 }}
@@ -604,14 +604,14 @@ export default function DiseaseHistory() {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     type="button" onClick={() => generatePDF(selectedReport)}
-                    className="p-2 rounded-lg" style={{ background: 'var(--color-surface-2)' }}>
+                    className="p-3 min-h-[44px] min-w-[44px] rounded-lg" style={{ background: 'var(--color-surface-2)' }}>
                     <Download size={15} />
                   </motion.button>
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     type="button" onClick={() => setSelectedReport(null)}
-                    className="p-2 rounded-lg" style={{ background: 'var(--color-surface-2)' }}>
+                    className="p-3 min-h-[44px] min-w-[44px] rounded-lg" style={{ background: 'var(--color-surface-2)' }}>
                     <X size={15} />
                   </motion.button>
                 </div>

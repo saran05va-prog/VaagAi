@@ -41,7 +41,7 @@ const TIMEZONES = ['Asia/Kolkata', 'Asia/Dubai', 'America/New_York', 'Europe/Lon
 function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
   return (
     <button onClick={onChange}
-      className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors"
+      className="relative inline-flex h-7 w-11 shrink-0 items-center rounded-full transition-colors"
       style={{ background: checked ? '#10B981' : 'rgba(255,255,255,0.1)' }}>
       <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`} />
     </button>
@@ -157,7 +157,7 @@ export default function Settings() {
                 const Icon = sec.icon
                 return (
                   <button key={sec.id} onClick={() => setActive(sec.id)}
-                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all"
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all"
                     style={{
                       background: isActive ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
                       color: isActive ? '#7bf1a8' : '#95be9f',
@@ -319,7 +319,7 @@ export default function Settings() {
         {active === 'appearance' && (
           <SectionWrap title="Appearance" desc="Customize how VaagAi looks on your device">
             <Card title="Theme" desc="Choose your preferred color scheme">
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {([['light', 'Light', Sun], ['dark', 'Dark', Moon], ['system', 'System', Monitor]] as [ThemeMode, string, typeof Sun][]).map(([mode, label, Icon]) => (
                   <button key={mode} onClick={() => { s.setTheme(mode); flash('Theme updated') }}
                     className="flex flex-col items-center gap-2 p-4 rounded-xl border transition-all"

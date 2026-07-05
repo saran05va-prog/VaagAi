@@ -451,7 +451,7 @@ export default function CropDoctor() {
                       key={s}
                       type="button"
                       onClick={() => toggleSymptom(s)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                      className="px-3 py-2 rounded-lg text-xs font-medium transition-all"
                       style={{
                         background: selectedSymptoms.includes(s) ? 'var(--color-primary-light)' : 'var(--color-surface-2)',
                         color: selectedSymptoms.includes(s) ? 'var(--color-primary)' : 'var(--color-text-muted)',

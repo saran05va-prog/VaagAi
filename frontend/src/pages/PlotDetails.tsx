@@ -102,16 +102,19 @@ export default function PlotDetails() {
           <h1 className="page-title">Plot Details</h1>
           <p className="page-subtitle">3D farm plot summary with health, size, position and weather context</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button className="btn btn-secondary" onClick={() => setShowCreateForm((value) => !value)}>
             <Plus size={16} />
-            Add Plot
+            <span className="hidden xs:inline sm:inline">Add Plot</span>
+            <span className="inline xs:hidden sm:hidden">Plot</span>
           </button>
           <button className="btn btn-secondary" onClick={() => navigate('/recommendations')}>
-            Crop Recommendations
+            <span className="hidden sm:inline">Crop Recommendations</span>
+            <span className="inline sm:hidden">Crops</span>
           </button>
           <button className="btn btn-primary" onClick={() => navigate('/farm')}>
-            Open 3D Farm
+            <span className="hidden sm:inline">Open 3D Farm</span>
+            <span className="inline sm:hidden">3D Farm</span>
           </button>
         </div>
       </div>

@@ -158,7 +158,7 @@ export default function Weather() {
         <div className="flex items-center gap-2 text-sm" style={{ color: 'var(--color-text-muted)' }}>
           <MapPin size={14} style={{ color: 'var(--color-primary)' }} />
           {current?.location || location}
-          <button onClick={() => refetchCurrent()} className="min-h-[32px] min-w-[32px] flex items-center justify-center rounded-lg transition-colors hover:opacity-70" title="Refresh">
+          <button onClick={() => refetchCurrent()} className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg transition-colors hover:opacity-70" title="Refresh">
             <RefreshCw size={14} />
           </button>
         </div>

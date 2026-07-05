@@ -169,11 +169,67 @@ export default function TopBar({ title, subtitle, status = 'connected', actions,
       {onMenuToggle && (
         <button
           onClick={onMenuToggle}
-          className="lg:hidden p-2 rounded-lg hover:bg-muted transition-colors"
+          className="lg:hidden p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
           aria-label={menuOpen ? 'Close menu' : 'Open menu'}
         >
           {menuOpen ? <X size={22} style={{ color: 'var(--color-text)' }} /> : <Menu size={22} style={{ color: 'var(--color-text)' }} />}
         </button>
+      )}
+
+      {/* Mobile search overlay */}
+      {searchOpen && (
+        <div className="fixed inset-0 z-50 md:hidden" style={{ background: 'rgba(8, 16, 12, 0.98)' }}>
+          <div className="flex items-center gap-3 p-4" style={{ borderBottom: '1px solid rgba(123, 207, 137, 0.14)' }}>
+            <Search size={18} style={{ color: '#90b69a' }} />
+            <input
+              autoFocus
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search plots, tasks, pages..."
+              className="flex-1 bg-transparent text-base outline-none"
+              style={{ color: '#eefdf0' }}
+            />
+            <button onClick={() => { setSearchOpen(false); setSearchQuery('') }} className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center">
+              <X size={20} style={{ color: '#90b69a' }} />
+            </button>
+          </div>
+          <div className="p-4 space-y-2 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 64px)' }}>
+            {searchQuery.trim() ? (
+              searchResults.length > 0 ? searchResults.map((item, index) => {
+                const Icon = item.icon
+                return (
+                  <button
+                    key={`mobile-search-${index}`}
+                    type="button"
+                    onClick={() => {
+                      item.action()
+                      setSearchOpen(false)
+                      setSearchQuery('')
+                    }}
+                    className="flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-colors hover:bg-white/5"
+                    style={{ borderColor: 'rgba(123, 207, 137, 0.12)' }}
+                  >
+                    <span className="mt-0.5 rounded-lg p-2 shrink-0" style={{ background: 'rgba(123, 241, 168, 0.08)' }}>
+                      <Icon size={16} style={{ color: '#8ff0ab' }} />
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-sm font-medium truncate" style={{ color: '#eefdf0' }}>{item.label}</span>
+                      <span className="block text-xs truncate" style={{ color: '#95be9f' }}>{item.description}</span>
+                    </span>
+                  </button>
+                )
+              }) : (
+                <div className="rounded-xl border px-3 py-4 text-sm" style={{ borderColor: 'rgba(123, 207, 137, 0.12)', color: '#95be9f' }}>
+                  No results found.
+                </div>
+              )
+            ) : (
+              <div className="rounded-xl border px-3 py-4 text-sm" style={{ borderColor: 'rgba(123, 207, 137, 0.12)', color: '#95be9f' }}>
+                Try searching plots, pages, tasks, or notifications.
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       <div className="flex-1 min-w-0">
@@ -193,19 +249,28 @@ export default function TopBar({ title, subtitle, status = 'connected', actions,
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
+        <button
+          type="button"
+          onClick={() => setSearchOpen((v) => !v)}
+          className="md:hidden p-2 rounded-lg hover:bg-white/5 transition-colors"
+          aria-label="Search"
+        >
+          <Search size={18} style={{ color: '#90b69a' }} />
+        </button>
+
         <div ref={searchRef} className="relative hidden md:block">
           <button
             type="button"
             onClick={() => setSearchOpen((v) => !v)}
-            className="flex h-10 w-[280px] items-center gap-2 rounded-2xl border px-3 text-left transition-colors hover:border-emerald-400/50"
+            className="flex h-10 w-[200px] lg:w-[280px] items-center gap-2 rounded-2xl border px-3 text-left transition-colors hover:border-emerald-400/50"
             style={{ borderColor: 'rgba(123, 207, 137, 0.18)', background: 'rgba(255,255,255,0.03)' }}
           >
             <Search size={16} strokeWidth={2} style={{ color: '#90b69a' }} />
-            <span className="text-sm" style={{ color: '#a7c9af' }}>Search plots, tasks, pages...</span>
+            <span className="text-sm truncate" style={{ color: '#a7c9af' }}>Search plots, tasks, pages...</span>
           </button>
 
           {searchOpen && (
-            <div className="absolute right-0 mt-2 w-[420px] rounded-2xl border p-3 shadow-xl z-50" style={{ borderColor: 'rgba(123, 207, 137, 0.18)', background: 'linear-gradient(180deg, #122118 0%, #0e1712 100%)' }}>
+            <div className="absolute right-0 mt-2 w-[380px] lg:w-[420px] rounded-2xl border p-3 shadow-xl z-50" style={{ borderColor: 'rgba(123, 207, 137, 0.18)', background: 'linear-gradient(180deg, #122118 0%, #0e1712 100%)' }}>
               <input
                 autoFocus
                 value={searchQuery}
@@ -271,7 +336,7 @@ export default function TopBar({ title, subtitle, status = 'connected', actions,
           </button>
 
           {notificationsOpen && (
-            <div className="absolute right-0 mt-2 w-[380px] rounded-2xl border p-3 shadow-xl z-50" style={{ borderColor: 'rgba(123, 207, 137, 0.18)', background: 'linear-gradient(180deg, #122118 0%, #0e1712 100%)' }}>
+            <div className="fixed sm:absolute right-2 sm:right-0 top-16 sm:top-full mt-0 sm:mt-2 w-[calc(100vw-16px)] sm:w-[380px] max-w-[380px] rounded-2xl border p-3 shadow-xl z-50" style={{ borderColor: 'rgba(123, 207, 137, 0.18)', background: 'linear-gradient(180deg, #122118 0%, #0e1712 100%)' }}>
               <div className="flex items-center justify-between mb-3">
                 <div>
                   <div className="text-sm font-semibold" style={{ color: '#eefdf0' }}>Notifications</div>
@@ -345,30 +410,66 @@ export default function TopBar({ title, subtitle, status = 'connected', actions,
           </button>
 
           {profileOpen && (
-            <div className="absolute right-0 mt-2 w-64 rounded-2xl border p-2 shadow-xl z-50" style={{ borderColor: 'rgba(123, 207, 137, 0.18)', background: 'linear-gradient(180deg, #122118 0%, #0e1712 100%)' }}>
-              <div className="px-3 py-2 border-b mb-2" style={{ borderColor: 'rgba(123, 207, 137, 0.12)' }}>
-                <div className="text-sm font-semibold" style={{ color: '#eefdf0' }}>{displayName}</div>
-                <div className="text-xs" style={{ color: '#95be9f' }}>{farmName}</div>
+            <>
+              {/* Mobile fullscreen overlay */}
+              <div className="fixed inset-0 z-50 md:hidden" style={{ background: 'rgba(8, 16, 12, 0.98)' }}>
+                <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid rgba(123, 207, 137, 0.14)' }}>
+                  <div>
+                    <div className="text-base font-semibold" style={{ color: '#eefdf0' }}>{displayName}</div>
+                    <div className="text-sm" style={{ color: '#95be9f' }}>{farmName}</div>
+                  </div>
+                  <button onClick={() => setProfileOpen(false)} className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center">
+                    <X size={20} style={{ color: '#90b69a' }} />
+                  </button>
+                </div>
+                <div className="p-4 space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => { setProfileOpen(false); navigate('/settings') }}
+                    className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm transition-colors hover:bg-white/5"
+                    style={{ color: '#eefdf0' }}
+                  >
+                    <Settings size={18} />
+                    Settings
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => { setProfileOpen(false); await signOut(); navigate('/login') }}
+                    className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm transition-colors hover:bg-white/5"
+                    style={{ color: '#fecaca' }}
+                  >
+                    <LogOut size={18} />
+                    Logout
+                  </button>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => { setProfileOpen(false); navigate('/settings') }}
-                className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors hover:bg-white/5"
-                style={{ color: '#eefdf0' }}
-              >
-                <Settings size={15} />
-                Settings
-              </button>
-              <button
-                type="button"
-                onClick={async () => { setProfileOpen(false); await signOut(); navigate('/login') }}
-                className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors hover:bg-white/5"
-                style={{ color: '#fecaca' }}
-              >
-                <LogOut size={15} />
-                Logout
-              </button>
-            </div>
+
+              {/* Desktop dropdown */}
+              <div className="hidden md:block absolute right-0 mt-2 w-64 rounded-2xl border p-2 shadow-xl z-50" style={{ borderColor: 'rgba(123, 207, 137, 0.18)', background: 'linear-gradient(180deg, #122118 0%, #0e1712 100%)' }}>
+                <div className="px-3 py-2 border-b mb-2" style={{ borderColor: 'rgba(123, 207, 137, 0.12)' }}>
+                  <div className="text-sm font-semibold" style={{ color: '#eefdf0' }}>{displayName}</div>
+                  <div className="text-xs" style={{ color: '#95be9f' }}>{farmName}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setProfileOpen(false); navigate('/settings') }}
+                  className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors hover:bg-white/5"
+                  style={{ color: '#eefdf0' }}
+                >
+                  <Settings size={15} />
+                  Settings
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => { setProfileOpen(false); await signOut(); navigate('/login') }}
+                  className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors hover:bg-white/5"
+                  style={{ color: '#fecaca' }}
+                >
+                  <LogOut size={15} />
+                  Logout
+                </button>
+              </div>
+            </>
           )}
         </div>
       </div>

@@ -263,7 +263,7 @@ export default function FarmCalendar() {
               const icons = { month: <CalendarDays size={15} />, week: <Columns3 size={15} />, day: <List size={15} /> }
               return (
                 <button key={mode} onClick={() => setViewMode(mode)}
-                  className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium transition-all capitalize"
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-medium transition-all capitalize"
                   style={{
                     background: active ? 'rgba(123, 241, 168, 0.12)' : 'transparent',
                     color: active ? '#7bf1a8' : '#95be9f',
@@ -290,19 +290,19 @@ export default function FarmCalendar() {
 
         <div className="flex items-center gap-2">
           <button onClick={handleToday}
-            className="px-3.5 py-2 rounded-xl text-xs font-medium border transition-colors hover:border-emerald-400/50"
+            className="px-3.5 py-2.5 rounded-xl text-xs font-medium border transition-colors hover:border-emerald-400/50"
             style={{ borderColor: 'rgba(123, 207, 137, 0.2)', color: '#eefdf0' }}>
             Today
           </button>
           <div className="flex items-center">
-            <button onClick={handlePrev} className="p-2 rounded-l-xl border transition-colors hover:border-emerald-400/50" style={{ borderColor: 'rgba(123, 207, 137, 0.2)' }}>
-              <ChevronLeft size={16} style={{ color: '#90b69a' }} />
+            <button onClick={handlePrev} className="p-3 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-l-xl border transition-colors hover:border-emerald-400/50" style={{ borderColor: 'rgba(123, 207, 137, 0.2)' }}>
+              <ChevronLeft size={18} style={{ color: '#90b69a' }} />
             </button>
-            <div className="px-4 py-2 border-t border-b text-sm font-semibold min-w-[180px] text-center select-none" style={{ borderColor: 'rgba(123, 207, 137, 0.2)', color: '#eefdf0' }}>
+            <div className="px-3 sm:px-4 py-2 border-t border-b text-sm font-semibold min-w-[140px] sm:min-w-[180px] text-center select-none truncate" style={{ borderColor: 'rgba(123, 207, 137, 0.2)', color: '#eefdf0' }}>
               {dateLabel}
             </div>
-            <button onClick={handleNext} className="p-2 rounded-r-xl border transition-colors hover:border-emerald-400/50" style={{ borderColor: 'rgba(123, 207, 137, 0.2)' }}>
-              <ChevronRight size={16} style={{ color: '#90b69a' }} />
+            <button onClick={handleNext} className="p-3 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-r-xl border transition-colors hover:border-emerald-400/50" style={{ borderColor: 'rgba(123, 207, 137, 0.2)' }}>
+              <ChevronRight size={18} style={{ color: '#90b69a' }} />
             </button>
           </div>
         </div>

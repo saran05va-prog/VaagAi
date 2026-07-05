@@ -257,7 +257,7 @@ export default function Market() {
                 setCropQuery(crop)
                 setExpandedCrop(crop)
               }}
-              className={`rounded-lg border px-3 py-1 text-xs transition-colors ${cropQuery.toLowerCase() === crop.toLowerCase()
+              className={`rounded-lg border px-3 py-2.5 text-xs transition-colors ${cropQuery.toLowerCase() === crop.toLowerCase()
                   ? 'bg-emerald-600 text-white border-emerald-600'
                   : 'border-border text-muted-foreground hover:border-emerald-400 hover:text-emerald-600'
                 }`}
