@@ -11,8 +11,8 @@ FROM base AS deps
 
 WORKDIR /app
 
-# Copy package files
-COPY package.json package-lock.json ./
+# Copy package files (build context = repo root)
+COPY backend/package.json backend/package-lock.json ./
 
 # Install dependencies
 RUN npm ci --only=production
@@ -26,13 +26,13 @@ WORKDIR /app
 
 # Copy dependency files
 COPY --from=deps /app/node_modules ./node_modules
-COPY package.json package-lock.json ./
+COPY backend/package.json backend/package-lock.json ./
 
 # Install all dependencies for building
 RUN npm ci
 
-# Copy source
-COPY . .
+# Copy backend source (context = repo root, so copy backend/ subdir)
+COPY backend/ .
 
 # Generate Prisma client
 RUN ./node_modules/.bin/prisma generate --schema=prisma/schema.prisma
